@@ -1,0 +1,113 @@
+# 服务器配置
+server:
+  port: 8082   # 业务系统端口
+  servlet:
+    context-path: /
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+# Spring 配置
+spring:
+  application:
+    name: sso-client
+
+  # Redis配置 (如果使用模式一或模式二，需要与SSO-Server共享Redis)
+  redis:
+    database: 1
+    host: 127.0.0.1
+    port: 6379
+    password:
+    timeout: 10000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-wait: -1ms
+        max-idle: 8
+        min-idle: 0
+
+# 如果业务系统也有自己的业务数据库，可以配置独立的数据库
+# spring:
+#   datasource:
+#     url: jdbc:mysql://localhost:3306/business_db?useSSL=false&serverTimezone=UTC&characterEncoding=utf8
+#     username: root
+#     password: xmy5201314
+#     driver-class-name: com.mysql.cj.jdbc.Driver
+
+# Sa-Token完整SSO客户端配置
+sa-token:
+    # 基础配置
+    token-name: satoken
+    timeout: 2592000
+    active-timeout: -1
+    is-concurrent: true
+    is-share: false
+    token-style: uuid
+    is-log: true
+
+    # SSO客户端配置
+    sso:
+        # 开启SSO模式
+        is-sso: true
+        # 配置SSO认证中心地址
+        auth-url: http://localhost:8081/sso/auth
+        # 配置当前系统的单点登出回调地址
+        sso-logout-call: http://localhost:8082/sso/logout-call
+        # 是否打开单点登出功能
+        is-slo: true
+        # 是否打开模式三
+        is-http: true
+        # 接口调用秘钥（需要与SSO-Server保持一致）
+        secretkey: kQwIOrYvnXsVDhwOh2tPzI9at3cKs6VuOqQyHEz0c1Q
+        # SSO-Server端主机地址
+        server-url: http://localhost:8081
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    cn.dev33.satoken: DEBUG
+    org.example.ssoclient: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/sso-client.log
+    max-size: 10MB
+    max-history: 30
+
+# 跨域配置
+cors:
+  allowed-origins:
+    - http://localhost:3000
+    - http://localhost:8080
+    - http://localhost:8081
+    - http://localhost:8082
+  allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  allowed-headers: "*"
+  allow-credentials: true
+
+# 管理端点配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+
+# 自定义配置
+app:
+  # 系统配置
+  system:
+    name: SSO业务系统
+    version: 1.0.0
+    description: 基于Sa-Token的SSO客户端系统
+
+  # 文件上传配置
+  upload:
+    path: /uploads/
+    max-file-size: 10MB
+    max-request-size: 50MB
