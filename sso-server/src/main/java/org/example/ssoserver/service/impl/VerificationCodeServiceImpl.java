@@ -4,9 +4,10 @@ import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.ssoserver.common.Result;
+import org.example.common.result.Result;
+import org.example.common.result.ResultCode;
+import org.example.common.util.EncryptUtil;
 import org.example.ssoserver.service.VerificationCodeService;
-import org.example.ssoserver.util.EncryptUtil;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -37,7 +38,7 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
     public Result<Void> sendSmsCode(String phone, String purpose) {
         try {
             if (StrUtil.isBlank(phone)) {
-                return Result.error(Result.ResultCode.PARAM_ERROR.getCode(), "手机号不能为空");
+                return Result.error(ResultCode.PARAM_ERROR.getCode(), "手机号不能为空");
             }
             
             // 检查发送频率限制
@@ -62,7 +63,7 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
             return Result.<Void>success();
         } catch (Exception e) {
             log.error("发送短信验证码失败", e);
-            return Result.error(Result.ResultCode.SMS_SEND_ERROR);
+            return Result.error(ResultCode.SMS_SEND_ERROR);
         }
     }
     
@@ -70,7 +71,7 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
     public Result<Void> sendEmailCode(String email, String purpose) {
         try {
             if (StrUtil.isBlank(email)) {
-                return Result.error(Result.ResultCode.PARAM_ERROR.getCode(), "邮箱不能为空");
+                return Result.error(ResultCode.PARAM_ERROR.getCode(), "邮箱不能为空");
             }
             
             // 检查发送频率限制
@@ -95,7 +96,7 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
             return Result.<Void>success();
         } catch (Exception e) {
             log.error("发送邮箱验证码失败", e);
-            return Result.error(Result.ResultCode.EMAIL_SEND_ERROR);
+            return Result.error(ResultCode.EMAIL_SEND_ERROR);
         }
     }
     
@@ -103,7 +104,7 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
     public Result<Boolean> verifySmsCode(String phone, String code, String purpose) {
         try {
             if (StrUtil.isBlank(phone) || StrUtil.isBlank(code)) {
-                return Result.error(Result.ResultCode.PARAM_ERROR.getCode(), "手机号和验证码不能为空");
+                return Result.error(ResultCode.PARAM_ERROR.getCode(), "手机号和验证码不能为空");
             }
             
             String cacheKey = SMS_CODE_PREFIX + phone + ":" + purpose;
@@ -130,7 +131,7 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
     public Result<Boolean> verifyEmailCode(String email, String code, String purpose) {
         try {
             if (StrUtil.isBlank(email) || StrUtil.isBlank(code)) {
-                return Result.error(Result.ResultCode.PARAM_ERROR.getCode(), "邮箱和验证码不能为空");
+                return Result.error(ResultCode.PARAM_ERROR.getCode(), "邮箱和验证码不能为空");
             }
             
             String cacheKey = EMAIL_CODE_PREFIX + email + ":" + purpose;
@@ -183,7 +184,7 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
     public Result<Boolean> verifyImageCaptcha(String key, String code) {
         try {
             if (StrUtil.isBlank(key) || StrUtil.isBlank(code)) {
-                return Result.error(Result.ResultCode.PARAM_ERROR.getCode(), "验证码key和code不能为空");
+                return Result.error(ResultCode.PARAM_ERROR.getCode(), "验证码key和code不能为空");
             }
             
             String cacheKey = IMAGE_CAPTCHA_PREFIX + key;

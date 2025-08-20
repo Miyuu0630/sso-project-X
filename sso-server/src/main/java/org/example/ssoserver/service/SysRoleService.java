@@ -1,7 +1,8 @@
 package org.example.ssoserver.service;
 
-import org.example.ssoserver.common.Result;
-import org.example.ssoserver.entity.SysRole;
+
+import org.example.common.entity.SysRole;
+import org.example.common.result.Result;
 
 import java.util.List;
 import java.util.Map;
@@ -44,8 +45,8 @@ public interface SysRoleService {
     /**
      * 分页查询角色列表
      */
-    Result<Map<String, Object>> getRoleList(String roleName, String roleCode, 
-                                           Integer status, Integer page, Integer size);
+    Result<Map<String, Object>> getRoleList(String roleName, String roleCode,
+                                           String status, Integer page, Integer size);
     
     /**
      * 获取所有启用的角色
@@ -80,5 +81,5 @@ public interface SysRoleService {
     /**
      * 根据用户类型获取默认角色
      */
-    SysRole getDefaultRoleByUserType(Integer userType);
+    SysRole getDefaultRoleByUserType(String userType);
 }

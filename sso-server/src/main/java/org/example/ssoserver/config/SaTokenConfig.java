@@ -5,8 +5,9 @@ import cn.dev33.satoken.router.SaRouter;
 import cn.dev33.satoken.stp.StpInterface;
 import cn.dev33.satoken.stp.StpUtil;
 import lombok.RequiredArgsConstructor;
-import org.example.ssoserver.service.SysPermissionService;
+import org.example.ssoserver.service.SysMenuService;
 import org.example.ssoserver.service.SysRoleService;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -19,11 +20,16 @@ import java.util.stream.Collectors;
  * Sa-Token配置类
  */
 @Configuration
-@RequiredArgsConstructor
 public class SaTokenConfig implements WebMvcConfigurer {
-    
+
     private final SysRoleService roleService;
-    private final SysPermissionService permissionService;
+    private final SysMenuService menuService;
+
+    public SaTokenConfig(@Qualifier("sysRoleServiceImpl") SysRoleService roleService,
+                        @Qualifier("sysMenuServiceImpl") SysMenuService menuService) {
+        this.roleService = roleService;
+        this.menuService = menuService;
+    }
     
     /**
      * 注册Sa-Token拦截器
@@ -33,12 +39,13 @@ public class SaTokenConfig implements WebMvcConfigurer {
         // 注册Sa-Token拦截器，校验规则为StpUtil.checkLogin()登录校验
         registry.addInterceptor(new SaInterceptor(handle -> {
             SaRouter
-                // 登录校验 -- 拦截所有路由，并排除/auth/login、/auth/register等用于开放访问的路由
+                // 登录校验 -- 拦截所有路由，并排除开放访问的路由
                 .match("/**")
-                .notMatch("/auth/login", "/auth/register", "/auth/check-username", 
-                         "/auth/check-phone", "/auth/check-email", "/auth/send-sms-code", 
+                .notMatch("/auth/login", "/auth/register", "/auth/check-username",
+                         "/auth/check-phone", "/auth/check-email", "/auth/send-sms-code",
                          "/auth/send-email-code", "/auth/captcha", "/auth/verify-captcha",
-                         "/auth/wechat/**", "/auth/alipay/**", "/error", "/favicon.ico")
+                         "/auth/wechat/**", "/auth/alipay/**", "/sso/**", "/test-**",
+                         "/error", "/favicon.ico", "/static/**")
                 .check(r -> StpUtil.checkLogin());
         })).addPathPatterns("/**");
     }
@@ -56,7 +63,7 @@ public class SaTokenConfig implements WebMvcConfigurer {
             @Override
             public List<String> getPermissionList(Object loginId, String loginType) {
                 Long userId = Long.valueOf(loginId.toString());
-                return permissionService.getUserPermissions(userId);
+                return menuService.getUserPermissions(userId);
             }
             
             /**
@@ -67,7 +74,7 @@ public class SaTokenConfig implements WebMvcConfigurer {
                 Long userId = Long.valueOf(loginId.toString());
                 return roleService.getUserRoles(userId)
                     .stream()
-                    .map(role -> role.getRoleCode())
+                    .map(role -> role.getRoleKey())
                     .collect(Collectors.toList());
             }
         };

@@ -82,6 +82,55 @@ public class SsoClientController {
             );
         }
     }
+
+    /**
+     * 处理POST请求的SSO回调（供前端调用）
+     */
+    @PostMapping("/sso-auth")
+    public Object ssoAuthPost(@RequestBody Map<String, String> request) {
+        String ticket = request.get("ticket");
+        log.info("SSO POST回调, ticket: {}", ticket);
+
+        try {
+            if (ticket != null && !ticket.isEmpty()) {
+                // 验证ticket
+                String url = ssoServerUrl + "/sso/check-ticket?ticket=" + ticket;
+                String response = HttpUtil.get(url);
+                JSONObject result = JSONUtil.parseObj(response);
+
+                if (result.getInt("code") == 200) {
+                    JSONObject data = result.getJSONObject("data");
+                    if (data.getBool("valid")) {
+                        // ticket有效，执行本地登录
+                        String userId = data.getStr("userId");
+                        StpUtil.login(userId);
+
+                        log.info("SSO POST登录成功，用户ID: {}", userId);
+                        return Map.of(
+                            "code", 200,
+                            "message", "登录成功",
+                            "data", Map.of(
+                                "userId", userId,
+                                "token", StpUtil.getTokenValue()
+                            )
+                        );
+                    }
+                }
+            }
+
+            return Map.of(
+                "code", 400,
+                "message", "ticket无效或已过期"
+            );
+
+        } catch (Exception e) {
+            log.error("SSO POST回调处理失败", e);
+            return Map.of(
+                "code", 500,
+                "message", "登录失败"
+            );
+        }
+    }
     
     /**
      * 获取登录地址
@@ -263,6 +312,32 @@ public class SsoClientController {
         );
     }
     
+    /**
+     * Token验证接口（供前端调用）
+     */
+    @GetMapping("/sso/verify")
+    public Object verifyToken() {
+        try {
+            boolean isLogin = StpUtil.isLogin();
+            Map<String, Object> result = Map.of(
+                "valid", isLogin,
+                "userInfo", isLogin ? Map.of("userId", StpUtil.getLoginId()) : null
+            );
+            return Map.of(
+                "code", 200,
+                "data", result
+            );
+        } catch (Exception e) {
+            log.error("Token验证失败", e);
+            return Map.of(
+                "code", 500,
+                "message", "验证失败"
+            );
+        }
+    }
+
+
+
     /**
      * 首页
      */

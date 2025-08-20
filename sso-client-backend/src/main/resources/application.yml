@@ -45,6 +45,8 @@ sa-token:
     is-share: false
     token-style: uuid
     is-log: true
+    # 使用Redis存储
+    dao-type: redis
 
     # SSO客户端配置
     sso:
@@ -81,6 +83,8 @@ logging:
 cors:
   allowed-origins:
     - http://localhost:3000
+    - http://localhost:5137
+    - http://localhost:5173
     - http://localhost:8080
     - http://localhost:8081
     - http://localhost:8082

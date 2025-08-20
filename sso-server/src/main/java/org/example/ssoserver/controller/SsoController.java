@@ -1,12 +1,14 @@
 package org.example.ssoserver.controller;
 
 import cn.dev33.satoken.stp.StpUtil;
-import cn.hutool.core.util.StrUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.ssoserver.common.Result;
-import org.example.ssoserver.entity.SysUser;
+import org.example.common.entity.SysUser;
+import org.example.common.result.Result;
+import org.example.common.result.ResultCode;
 import org.example.ssoserver.service.SysUserService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,8 +23,11 @@ import java.util.Map;
 @RequestMapping("/sso")
 @RequiredArgsConstructor
 public class SsoController {
-    
+
     private final SysUserService userService;
+
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
     
     /**
      * SSO统一认证入口
@@ -113,7 +118,7 @@ public class SsoController {
             // 验证ticket并获取用户ID
             Object loginId = StpUtil.getLoginIdByToken(ticket);
             if (loginId == null) {
-                return Result.error(Result.ResultCode.LOGIN_EXPIRED);
+                return Result.error(ResultCode.LOGIN_EXPIRED);
             }
             
             Long userId = Long.valueOf(loginId.toString());
@@ -122,7 +127,7 @@ public class SsoController {
             if (user != null) {
                 return Result.success(user);
             } else {
-                return Result.error(Result.ResultCode.USER_NOT_FOUND);
+                return Result.error(ResultCode.USER_NOT_FOUND);
             }
         } catch (Exception e) {
             log.error("获取SSO用户信息失败", e);
@@ -136,16 +141,22 @@ public class SsoController {
     @GetMapping("/check-ticket")
     public Result<Map<String, Object>> checkTicket(@RequestParam String ticket) {
         try {
-            // 验证ticket
-            Object loginId = StpUtil.getLoginIdByToken(ticket);
-            boolean isValid = loginId != null;
-            
+            // 从Redis中获取ticket对应的用户ID
+            Object loginIdObj = redisTemplate.opsForValue().get("sso-ticket-" + ticket);
+            boolean isValid = loginIdObj != null;
+            String loginId = isValid ? loginIdObj.toString() : "";
+
             Map<String, Object> result = Map.of(
                 "valid", isValid,
-                "userId", isValid ? loginId : "",
+                "userId", loginId,
                 "timestamp", System.currentTimeMillis()
             );
-            
+
+            // 如果ticket有效，删除一次性ticket
+            if (isValid) {
+                redisTemplate.delete("sso-ticket-" + ticket);
+            }
+
             return Result.success(result);
         } catch (Exception e) {
             log.error("验证ticket失败", e);
@@ -162,7 +173,7 @@ public class SsoController {
             // 验证ticket并获取用户ID
             Object loginId = StpUtil.getLoginIdByToken(ticket);
             if (loginId == null) {
-                return Result.error(Result.ResultCode.LOGIN_EXPIRED);
+                return Result.error(ResultCode.LOGIN_EXPIRED);
             }
             
             Long userId = Long.valueOf(loginId.toString());
@@ -190,7 +201,7 @@ public class SsoController {
             // 验证当前ticket
             Object loginId = StpUtil.getLoginIdByToken(ticket);
             if (loginId == null) {
-                return Result.error(Result.ResultCode.LOGIN_EXPIRED);
+                return Result.error(ResultCode.LOGIN_EXPIRED);
             }
             
             // 续签token

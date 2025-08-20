@@ -1,7 +1,6 @@
 package org.example.ssoserver.service;
 
-import org.example.ssoserver.common.Result;
-import org.example.ssoserver.entity.SysLoginLog;
+import org.example.common.result.Result;
 
 import java.util.List;
 import java.util.Map;

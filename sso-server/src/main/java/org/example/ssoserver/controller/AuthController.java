@@ -4,10 +4,11 @@ import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.util.StrUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.ssoserver.common.Result;
-import org.example.ssoserver.dto.LoginRequest;
-import org.example.ssoserver.dto.RegisterRequest;
-import org.example.ssoserver.entity.SysUser;
+import org.example.common.dto.LoginRequest;
+import org.example.common.dto.RegisterRequest;
+import org.example.common.entity.SysUser;
+import org.example.common.result.Result;
+import org.example.common.result.ResultCode;
 import org.example.ssoserver.service.SysUserService;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -41,8 +42,8 @@ public class AuthController {
      * 用户登录
      */
     @PostMapping("/login")
-    public Result<Map<String, Object>> login(@Valid @RequestBody LoginRequest request, 
-                                            HttpServletRequest httpRequest) {
+    public Result<Map<String, Object>> login(@Valid @RequestBody LoginRequest request,
+                                             HttpServletRequest httpRequest) {
         // 设置客户端信息
         request.setClientIp(getClientIp(httpRequest));
         request.setUserAgent(httpRequest.getHeader("User-Agent"));
@@ -72,7 +73,7 @@ public class AuthController {
             if (user != null) {
                 return Result.success(user);
             } else {
-                return Result.error(Result.ResultCode.USER_NOT_FOUND);
+                return Result.error(ResultCode.USER_NOT_FOUND);
             }
         } catch (Exception e) {
             log.error("获取用户信息失败", e);
@@ -109,7 +110,7 @@ public class AuthController {
             String newPassword = request.get("newPassword");
             
             if (StrUtil.isBlank(oldPassword) || StrUtil.isBlank(newPassword)) {
-                return Result.error(Result.ResultCode.PARAM_ERROR.getCode(), "原密码和新密码不能为空");
+                return Result.error(ResultCode.PARAM_ERROR.getCode(), "原密码和新密码不能为空");
             }
             
             return userService.changePassword(userId, oldPassword, newPassword);

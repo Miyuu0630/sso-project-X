@@ -3,7 +3,7 @@ package org.example.ssoserver.service.impl;
 import cn.hutool.core.util.StrUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.ssoserver.common.Result;
+import org.example.common.result.Result;
 import org.example.ssoserver.service.ThirdPartyLoginService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;

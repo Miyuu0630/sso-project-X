@@ -1,6 +1,8 @@
 package org.example.ssoserver.service;
 
-import org.example.ssoserver.common.Result;
+
+import org.example.common.result.Result;
+
 import java.util.Map;
 
 /**

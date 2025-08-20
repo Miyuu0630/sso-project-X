@@ -9,12 +9,12 @@ export const SSO_CONFIG = {
   SERVER_URL: process.env.VUE_APP_SSO_SERVER_URL || 'http://localhost:8081',
   
   // Client 地址
-  CLIENT_URL: process.env.VUE_APP_CLIENT_URL || 'http://localhost:3000',
+  CLIENT_URL: process.env.VUE_APP_CLIENT_URL || 'http://localhost:5137',
   
   // API 路径
   API_PATHS: {
-    LOGIN: '/login',
-    LOGOUT: '/logout',
+    LOGIN: '/sso/auth',
+    LOGOUT: '/sso/logout',
     VERIFY: '/sso/verify',
     USER_INFO: '/sso/userinfo',
     REGISTER: '/register'

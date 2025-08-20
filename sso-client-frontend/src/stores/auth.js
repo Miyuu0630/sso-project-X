@@ -66,7 +66,14 @@ export const useAuthStore = defineStore('auth', () => {
   const redirectToLogin = (returnUrl = window.location.href) => {
     const ssoServerUrl = 'http://localhost:8081'
     const callbackUrl = `${window.location.origin}/callback`
-    const loginUrl = `${ssoServerUrl}/login?redirect=${encodeURIComponent(callbackUrl)}&return_url=${encodeURIComponent(returnUrl)}`
+    // 使用Sa-Token SSO标准地址
+    const loginUrl = `${ssoServerUrl}/sso/auth?redirect=${encodeURIComponent(callbackUrl)}&return_url=${encodeURIComponent(returnUrl)}`
+    console.log('重定向到SSO登录页面:', loginUrl)
+
+    // 清除本地认证信息
+    clearAuth()
+
+    // 跳转到SSO登录页面
     window.location.href = loginUrl
   }
 

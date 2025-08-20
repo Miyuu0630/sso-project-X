@@ -119,36 +119,46 @@ const handleSsoCallback = async () => {
     addDebugStep(`URL 参数: ${JSON.stringify(query)}`)
     
     // 检查必要参数
-    const token = query.token
+    const ticket = query.ticket
     const returnUrl = query.return_url || query.redirect || '/'
-    
-    if (!token) {
-      throw new Error('未收到有效的登录凭证 (token)')
+
+    if (!ticket) {
+      throw new Error('未收到有效的登录凭证 (ticket)')
     }
-    
-    addDebugStep(`Token: ${token.substring(0, 20)}...`)
+
+    addDebugStep(`Ticket: ${ticket.substring(0, 20)}...`)
     addDebugStep(`返回地址: ${returnUrl}`)
-    
+
     // 步骤 1: 验证凭证
     currentStep.value = 1
-    message.value = '正在验证 Token...'
-    
-    // 存储 Token
-    authStore.setToken(token)
-    addDebugStep('Token 已存储到本地')
-    
-    // 步骤 2: 获取用户信息
-    currentStep.value = 2
-    message.value = '正在获取用户信息...'
-    
-    // 验证 Token 有效性并获取用户信息
-    const isValid = await authStore.checkTokenValidity()
-    
-    if (!isValid) {
-      throw new Error('Token 验证失败，请重新登录')
+    message.value = '正在验证 Ticket...'
+
+    // 验证ticket并获取token
+    const response = await axios.get(`/sso/check-ticket?ticket=${ticket}`)
+    if (response.data.code !== 200 || !response.data.data.valid) {
+      throw new Error('Ticket验证失败')
     }
+
+    const userId = response.data.data.userId
+    addDebugStep(`Ticket验证成功，用户ID: ${userId}`)
     
-    addDebugStep('Token 验证成功')
+    // 步骤 2: 执行本地登录
+    currentStep.value = 2
+    message.value = '正在执行本地登录...'
+
+    // 调用客户端后端进行本地登录
+    const loginResponse = await axios.post('/sso-auth', { ticket })
+    if (loginResponse.data.code !== 200) {
+      throw new Error('本地登录失败')
+    }
+
+    // 设置token
+    const token = loginResponse.data.data.token
+    authStore.setToken(token)
+    addDebugStep('本地登录成功，Token已设置')
+
+    // 获取用户信息
+    await authStore.fetchUserData()
     addDebugStep(`用户信息: ${authStore.userInfo?.username}`)
     
     // 步骤 3: 准备跳转

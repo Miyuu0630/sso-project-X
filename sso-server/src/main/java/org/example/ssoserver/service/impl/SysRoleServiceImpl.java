@@ -3,9 +3,12 @@ package org.example.ssoserver.service.impl;
 import cn.hutool.core.util.StrUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.ssoserver.common.Result;
-import org.example.ssoserver.entity.SysRole;
-import org.example.ssoserver.mapper.SysRoleMapper;
+import org.example.common.result.Result;
+import org.example.common.result.ResultCode;
+import org.example.common.entity.SysRole;
+import org.example.common.entity.SysUserRole;
+import org.example.common.mapper.SysRoleMapper;
+import org.example.common.mapper.SysUserRoleMapper;
 import org.example.ssoserver.service.SysRoleService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,13 +27,18 @@ import java.util.Map;
 public class SysRoleServiceImpl implements SysRoleService {
     
     private final SysRoleMapper roleMapper;
+    private final SysUserRoleMapper userRoleMapper;
     
     @Override
     public List<SysRole> getUserRoles(Long userId) {
         if (userId == null) {
             return List.of();
         }
-        return roleMapper.selectByUserId(userId);
+        List<Long> roleIds = userRoleMapper.selectRoleIdsByUserId(userId);
+        return roleIds.stream()
+                .map(roleMapper::selectById)
+                .filter(role -> role != null)
+                .collect(java.util.stream.Collectors.toList());
     }
     
     @Override
@@ -46,7 +54,7 @@ public class SysRoleServiceImpl implements SysRoleService {
         if (StrUtil.isBlank(roleCode)) {
             return null;
         }
-        return roleMapper.selectByRoleCode(roleCode);
+        return roleMapper.selectByRoleKey(roleCode);
     }
     
     @Override
@@ -54,19 +62,19 @@ public class SysRoleServiceImpl implements SysRoleService {
     public Result<SysRole> createRole(SysRole role) {
         try {
             // 检查必填字段
-            if (StrUtil.isBlank(role.getRoleCode()) || StrUtil.isBlank(role.getRoleName())) {
-                return Result.error(Result.ResultCode.PARAM_ERROR.getCode(), "角色编码和角色名称不能为空");
+            if (StrUtil.isBlank(role.getRoleKey()) || StrUtil.isBlank(role.getRoleName())) {
+                return Result.error(ResultCode.PARAM_ERROR.getCode(), "角色权限字符串和角色名称不能为空");
             }
-            
+
             // 检查角色编码是否存在
-            if (getRoleByCode(role.getRoleCode()) != null) {
-                return Result.error("角色编码已存在");
+            if (getRoleByCode(role.getRoleKey()) != null) {
+                return Result.error("角色权限字符串已存在");
             }
-            
+
             role.setCreateTime(LocalDateTime.now());
             role.setUpdateTime(LocalDateTime.now());
             if (role.getStatus() == null) {
-                role.setStatus(1); // 默认启用
+                role.setStatus("1"); // 默认启用
             }
             
             int result = roleMapper.insert(role);
@@ -86,7 +94,7 @@ public class SysRoleServiceImpl implements SysRoleService {
     public Result<SysRole> updateRole(SysRole role) {
         try {
             if (role.getId() == null) {
-                return Result.error(Result.ResultCode.PARAM_ERROR.getCode(), "角色ID不能为空");
+                return Result.error(ResultCode.PARAM_ERROR.getCode(), "角色ID不能为空");
             }
             
             role.setUpdateTime(LocalDateTime.now());
@@ -107,8 +115,8 @@ public class SysRoleServiceImpl implements SysRoleService {
     public Result<Void> deleteRole(Long id) {
         try {
             // 检查是否有用户使用该角色
-            List<SysRole> userRoles = roleMapper.selectByUserId(id);
-            if (!userRoles.isEmpty()) {
+            List<Long> userIds = userRoleMapper.selectUserIdsByRoleId(id);
+            if (!userIds.isEmpty()) {
                 return Result.error("该角色正在使用中，无法删除");
             }
             
@@ -125,8 +133,8 @@ public class SysRoleServiceImpl implements SysRoleService {
     }
     
     @Override
-    public Result<Map<String, Object>> getRoleList(String roleName, String roleCode, 
-                                                  Integer status, Integer page, Integer size) {
+    public Result<Map<String, Object>> getRoleList(String roleName, String roleCode,
+                                                  String status, Integer page, Integer size) {
         try {
             // 计算偏移量
             int offset = (page - 1) * size;
@@ -162,14 +170,14 @@ public class SysRoleServiceImpl implements SysRoleService {
     public Result<Void> assignRolesToUser(Long userId, List<Long> roleIds) {
         try {
             // 先删除用户所有角色
-            roleMapper.deleteUserAllRoles(userId);
-            
+            userRoleMapper.deleteByUserId(userId);
+
             // 分配新角色
-            LocalDateTime now = LocalDateTime.now();
             for (Long roleId : roleIds) {
-                roleMapper.insertUserRole(userId, roleId, now, userId);
+                SysUserRole userRole = new SysUserRole(userId, roleId);
+                userRoleMapper.insert(userRole);
             }
-            
+
             return Result.<Void>success();
         } catch (Exception e) {
             log.error("分配角色失败", e);
@@ -182,7 +190,7 @@ public class SysRoleServiceImpl implements SysRoleService {
     public Result<Void> removeRolesFromUser(Long userId, List<Long> roleIds) {
         try {
             for (Long roleId : roleIds) {
-                roleMapper.deleteUserRole(userId, roleId);
+                userRoleMapper.delete(userId, roleId);
             }
             return Result.<Void>success();
         } catch (Exception e) {
@@ -198,7 +206,7 @@ public class SysRoleServiceImpl implements SysRoleService {
         }
         
         List<SysRole> roles = getUserRoles(userId);
-        return roles.stream().anyMatch(role -> roleCode.equals(role.getRoleCode()));
+        return roles.stream().anyMatch(role -> roleCode.equals(role.getRoleKey()));
     }
     
     @Override
@@ -209,7 +217,7 @@ public class SysRoleServiceImpl implements SysRoleService {
         
         List<SysRole> roles = getUserRoles(userId);
         for (String roleCode : roleCodes) {
-            if (roles.stream().anyMatch(role -> roleCode.equals(role.getRoleCode()))) {
+            if (roles.stream().anyMatch(role -> roleCode.equals(role.getRoleKey()))) {
                 return true;
             }
         }
@@ -224,7 +232,7 @@ public class SysRoleServiceImpl implements SysRoleService {
         
         List<SysRole> roles = getUserRoles(userId);
         for (String roleCode : roleCodes) {
-            if (roles.stream().noneMatch(role -> roleCode.equals(role.getRoleCode()))) {
+            if (roles.stream().noneMatch(role -> roleCode.equals(role.getRoleKey()))) {
                 return false;
             }
         }
@@ -232,10 +240,13 @@ public class SysRoleServiceImpl implements SysRoleService {
     }
     
     @Override
-    public SysRole getDefaultRoleByUserType(Integer userType) {
-        if (userType == null) {
-            userType = 1; // 默认个人用户
+    public SysRole getDefaultRoleByUserType(String userType) {
+        if (StrUtil.isBlank(userType)) {
+            userType = "user"; // 默认普通用户
         }
-        return roleMapper.selectDefaultRoleByUserType(userType);
+        // 根据用户类型返回默认角色，这里可以根据业务需求实现
+        // 暂时返回第一个启用的角色作为默认角色
+        List<SysRole> enabledRoles = roleMapper.selectAllEnabled();
+        return enabledRoles.isEmpty() ? null : enabledRoles.get(0);
     }
 }

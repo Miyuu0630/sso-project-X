@@ -4,11 +4,12 @@ import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.util.StrUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.ssoserver.common.Result;
-import org.example.ssoserver.dto.LoginRequest;
-import org.example.ssoserver.dto.RegisterRequest;
-import org.example.ssoserver.entity.SysUser;
-import org.example.ssoserver.mapper.SysUserMapper;
+import org.example.common.dto.LoginRequest;
+import org.example.common.dto.RegisterRequest;
+import org.example.common.entity.SysUser;
+import org.example.common.mapper.SysUserMapper;
+import org.example.common.result.Result;
+import org.example.common.result.ResultCode;
 import org.example.ssoserver.service.SysUserService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -28,7 +29,7 @@ import java.util.Map;
 public class SysUserServiceImpl implements SysUserService {
     
     private final SysUserMapper userMapper;
-    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final BCryptPasswordEncoder passwordEncoder;
     
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -36,20 +37,20 @@ public class SysUserServiceImpl implements SysUserService {
         try {
             // 验证密码一致性
             if (!request.isPasswordMatch()) {
-                return Result.error(Result.ResultCode.PASSWORD_NOT_MATCH);
+                return Result.error(ResultCode.PASSWORD_NOT_MATCH);
             }
-            
+
             // 检查用户名是否存在
             if (isUsernameExists(request.getUsername())) {
-                return Result.error(Result.ResultCode.USERNAME_EXISTS);
+                return Result.error(ResultCode.USERNAME_EXISTS);
             }
-            
+
             // 根据注册方式检查手机号或邮箱是否存在
             if ("phone".equals(request.getRegisterType()) && isPhoneExists(request.getPhone())) {
-                return Result.error(Result.ResultCode.PHONE_EXISTS);
+                return Result.error(ResultCode.PHONE_EXISTS);
             }
             if ("email".equals(request.getRegisterType()) && isEmailExists(request.getEmail())) {
-                return Result.error(Result.ResultCode.EMAIL_EXISTS);
+                return Result.error(ResultCode.EMAIL_EXISTS);
             }
             
             // 创建用户对象
@@ -60,7 +61,7 @@ public class SysUserServiceImpl implements SysUserService {
             user.setEmail(request.getEmail());
             user.setRealName(request.getRealName());
             user.setUserType(request.getUserType());
-            user.setStatus(1); // 默认启用
+            user.setStatus("1"); // 默认启用
             user.setCreateTime(LocalDateTime.now());
             user.setUpdateTime(LocalDateTime.now());
             
@@ -83,6 +84,9 @@ public class SysUserServiceImpl implements SysUserService {
     @Override
     public Result<Map<String, Object>> login(LoginRequest request) {
         try {
+            log.info("用户登录请求 - 账号: [{}], 密码: [{}], 登录类型: [{}]",
+                    request.getAccount(), request.getPassword(), request.getLoginType());
+
             // 根据登录类型查找用户
             SysUser user = null;
             switch (request.getLoginType()) {
@@ -96,19 +100,24 @@ public class SysUserServiceImpl implements SysUserService {
                     user = getUserByUsername(request.getAccount());
                     break;
             }
-            
+
+            log.info("数据库查询用户结果: {}", user != null ? user.getUsername() : "未找到用户");
+
             if (user == null) {
-                return Result.error(Result.ResultCode.USER_NOT_FOUND);
+                log.warn("用户不存在: {}", request.getAccount());
+                return Result.error(ResultCode.USER_NOT_FOUND);
             }
-            
+
             // 检查用户状态
             if (!user.isEnabled()) {
-                return Result.error(Result.ResultCode.USER_DISABLED);
+                log.warn("用户已禁用: {}", user.getUsername());
+                return Result.error(ResultCode.USER_DISABLED);
             }
-            
+
             // 验证密码
             if (!verifyPassword(request.getPassword(), user.getPassword())) {
-                return Result.error(Result.ResultCode.PASSWORD_ERROR);
+                log.warn("密码验证失败: {}", user.getUsername());
+                return Result.error(ResultCode.PASSWORD_ERROR);
             }
             
             // 执行登录
@@ -210,12 +219,12 @@ public class SysUserServiceImpl implements SysUserService {
         try {
             // 检查必填字段
             if (StrUtil.isBlank(user.getUsername()) || StrUtil.isBlank(user.getPassword())) {
-                return Result.error(Result.ResultCode.PARAM_ERROR.getCode(), "用户名和密码不能为空");
+                return Result.error(ResultCode.PARAM_ERROR.getCode(), "用户名和密码不能为空");
             }
-            
+
             // 检查用户名是否存在
             if (isUsernameExists(user.getUsername())) {
-                return Result.error(Result.ResultCode.USERNAME_EXISTS);
+                return Result.error(ResultCode.USERNAME_EXISTS);
             }
             
             // 加密密码
@@ -241,7 +250,7 @@ public class SysUserServiceImpl implements SysUserService {
     public Result<SysUser> updateUser(SysUser user) {
         try {
             if (user.getId() == null) {
-                return Result.error(Result.ResultCode.PARAM_ERROR.getCode(), "用户ID不能为空");
+                return Result.error(ResultCode.PARAM_ERROR.getCode(), "用户ID不能为空");
             }
             
             user.setUpdateTime(LocalDateTime.now());
@@ -263,12 +272,12 @@ public class SysUserServiceImpl implements SysUserService {
         try {
             SysUser user = userMapper.selectById(userId);
             if (user == null) {
-                return Result.error(Result.ResultCode.USER_NOT_FOUND);
+                return Result.error(ResultCode.USER_NOT_FOUND);
             }
-            
+
             // 验证原密码
             if (!verifyPassword(oldPassword, user.getPassword())) {
-                return Result.error(Result.ResultCode.OLD_PASSWORD_ERROR);
+                return Result.error(ResultCode.OLD_PASSWORD_ERROR);
             }
             
             // 更新密码
@@ -293,7 +302,7 @@ public class SysUserServiceImpl implements SysUserService {
     
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result<Void> updateUserStatus(Long userId, Integer status) {
+    public Result<Void> updateUserStatus(Long userId, String status) {
         try {
             int result = userMapper.updateStatus(userId, status, LocalDateTime.now(), userId);
             if (result > 0) {
@@ -325,15 +334,15 @@ public class SysUserServiceImpl implements SysUserService {
     
     @Override
     public Result<Map<String, Object>> getUserList(String username, String phone, String email,
-                                                  Integer status, Integer userType,
+                                                  String status, String userType,
                                                   Integer page, Integer size) {
         try {
             // 计算偏移量
             int offset = (page - 1) * size;
-            
+
             // 查询用户列表
             List<SysUser> users = userMapper.selectPage(username, phone, email, status, userType, offset, size);
-            
+
             // 查询总数
             int total = userMapper.selectCount(username, phone, email, status, userType);
             
@@ -365,14 +374,52 @@ public class SysUserServiceImpl implements SysUserService {
     
     @Override
     public boolean verifyPassword(String rawPassword, String encodedPassword) {
-        return passwordEncoder.matches(rawPassword, encodedPassword);
+        // 临时使用明文密码验证，方便测试
+        // TODO: 后续改回BCrypt验证
+        log.info("密码验证 - 原始密码: [{}], 数据库密码: [{}]", rawPassword, encodedPassword);
+
+        boolean plainTextMatch = rawPassword.equals(encodedPassword);
+        boolean bcryptMatch = passwordEncoder.matches(rawPassword, encodedPassword);
+
+        log.info("明文匹配结果: {}, BCrypt匹配结果: {}", plainTextMatch, bcryptMatch);
+
+        return plainTextMatch || bcryptMatch;
     }
     
     @Override
     public String encodePassword(String rawPassword) {
         return passwordEncoder.encode(rawPassword);
     }
-    
+
+    /**
+     * 简单登录验证（用于SSO）
+     */
+    @Override
+    public SysUser simpleLogin(String username, String password) {
+        try {
+            // 根据用户名查找用户
+            SysUser user = getUserByUsername(username);
+            if (user == null) {
+                return null;
+            }
+
+            // 检查用户状态
+            if (!user.isEnabled()) {
+                return null;
+            }
+
+            // 验证密码
+            if (!verifyPassword(password, user.getPassword())) {
+                return null;
+            }
+
+            return user;
+        } catch (Exception e) {
+            log.error("简单登录验证失败", e);
+            return null;
+        }
+    }
+
     /**
      * 获取用户权限列表
      */

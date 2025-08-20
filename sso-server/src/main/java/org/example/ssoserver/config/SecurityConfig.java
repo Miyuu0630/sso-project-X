@@ -10,6 +10,7 @@ import org.springframework.security.web.SecurityFilterChain;
 
 /**
  * Spring Security配置类
+ * 注意：我们使用Sa-Token进行认证，Spring Security仅用于密码编码
  */
 @Configuration
 @EnableWebSecurity
@@ -37,9 +38,13 @@ public class SecurityConfig {
             .httpBasic(AbstractHttpConfigurer::disable)
             // 禁用默认登出
             .logout(AbstractHttpConfigurer::disable)
-            // 允许所有请求（由Sa-Token处理认证）
+            // 禁用会话管理
+            .sessionManagement(AbstractHttpConfigurer::disable)
+            // 禁用默认的安全头
+            .headers(AbstractHttpConfigurer::disable)
+            // 允许所有请求（完全由Sa-Token处理认证）
             .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
-        
+
         return http.build();
     }
 }

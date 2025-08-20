@@ -51,6 +51,15 @@ const routes = [
     }
   },
   {
+    path: '/sso-test',
+    name: 'SsoTest',
+    component: () => import('../views/SsoTest.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'SSO测试'
+    }
+  },
+  {
     path: '/404',
     name: 'NotFound',
     component: () => import('../views/404.vue'),

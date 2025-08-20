@@ -1,11 +1,10 @@
 package org.example.ssoserver.service;
 
-import org.example.ssoserver.dto.LoginRequest;
-import org.example.ssoserver.dto.RegisterRequest;
-import org.example.ssoserver.entity.SysUser;
-import org.example.ssoserver.common.Result;
+import org.example.common.dto.LoginRequest;
+import org.example.common.dto.RegisterRequest;
+import org.example.common.entity.SysUser;
+import org.example.common.result.Result;
 
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -86,7 +85,7 @@ public interface SysUserService {
     /**
      * 启用/禁用用户
      */
-    Result<Void> updateUserStatus(Long userId, Integer status);
+    Result<Void> updateUserStatus(Long userId, String status);
     
     /**
      * 删除用户
@@ -96,8 +95,8 @@ public interface SysUserService {
     /**
      * 分页查询用户列表
      */
-    Result<Map<String, Object>> getUserList(String username, String phone, String email, 
-                                           Integer status, Integer userType, 
+    Result<Map<String, Object>> getUserList(String username, String phone, String email,
+                                           String status, String userType,
                                            Integer page, Integer size);
     
     /**
@@ -109,9 +108,17 @@ public interface SysUserService {
      * 验证密码
      */
     boolean verifyPassword(String rawPassword, String encodedPassword);
-    
+
     /**
      * 加密密码
      */
     String encodePassword(String rawPassword);
+
+    /**
+     * 简单登录验证（用于SSO）
+     * @param username 用户名
+     * @param password 密码
+     * @return 验证成功返回用户信息，失败返回null
+     */
+    SysUser simpleLogin(String username, String password);
 }

@@ -3,7 +3,8 @@ package org.example.ssoserver.controller;
 import cn.dev33.satoken.stp.StpUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.ssoserver.common.Result;
+
+import org.example.common.result.Result;
 import org.example.ssoserver.service.ThirdPartyLoginService;
 import org.example.ssoserver.service.VerificationCodeService;
 import org.springframework.web.bind.annotation.*;

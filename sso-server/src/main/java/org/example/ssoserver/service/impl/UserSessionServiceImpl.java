@@ -3,11 +3,11 @@ package org.example.ssoserver.service.impl;
 import cn.hutool.core.util.StrUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.ssoserver.common.Result;
-import org.example.ssoserver.entity.SysLoginLog;
-import org.example.ssoserver.mapper.SysLoginLogMapper;
+import org.example.common.entity.SysLoginLog;
+import org.example.common.mapper.SysLoginLogMapper;
+import org.example.common.result.Result;
+import org.example.common.util.DeviceUtil;
 import org.example.ssoserver.service.UserSessionService;
-import org.example.ssoserver.util.DeviceUtil;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -34,10 +34,10 @@ public class UserSessionServiceImpl implements UserSessionService {
             loginLog.setUsername(username);
             loginLog.setLoginType(loginType);
             loginLog.setLoginIp(loginIp);
-            loginLog.setDeviceId(deviceId);
+            loginLog.setDeviceFingerprint(deviceId);
             loginLog.setLoginTime(LocalDateTime.now());
-            loginLog.setLoginStatus(success ? 1 : 0);
-            loginLog.setFailureReason(failureReason);
+            loginLog.setStatus(success ? "1" : "0");
+            loginLog.setMsg(failureReason);
             
             if (StrUtil.isNotBlank(userAgent)) {
                 Map<String, String> deviceInfo = DeviceUtil.parseUserAgent(userAgent);
@@ -56,7 +56,7 @@ public class UserSessionServiceImpl implements UserSessionService {
     public void recordLogout(Long userId, String sessionId) {
         try {
             if (StrUtil.isNotBlank(sessionId)) {
-                loginLogMapper.updateLogoutTime(sessionId, LocalDateTime.now());
+                loginLogMapper.updateLogoutTimeByDevice(sessionId, LocalDateTime.now());
             }
         } catch (Exception e) {
             log.error("记录登出日志失败", e);
@@ -67,8 +67,8 @@ public class UserSessionServiceImpl implements UserSessionService {
     public Result<Map<String, Object>> getUserLoginLogs(Long userId, Integer page, Integer size) {
         try {
             int offset = (page - 1) * size;
-            
-            List<SysLoginLog> logs = loginLogMapper.selectPage(userId, null, null, null, 
+
+            List<SysLoginLog> logs = loginLogMapper.selectPage(userId, null, null, null,
                                                               null, null, offset, size);
             int total = loginLogMapper.selectCount(userId, null, null, null, null, null);
             
@@ -93,7 +93,7 @@ public class UserSessionServiceImpl implements UserSessionService {
             
             List<Map<String, Object>> devices = onlineDevices.stream().map(device -> {
                 Map<String, Object> deviceMap = new HashMap<>();
-                deviceMap.put("deviceId", device.getDeviceId());
+                deviceMap.put("deviceId", device.getDeviceFingerprint());
                 deviceMap.put("deviceType", device.getDeviceType());
                 deviceMap.put("deviceName", DeviceUtil.getDeviceName(device.getBrowser() + " " + device.getOs()));
                 deviceMap.put("loginIp", device.getLoginIp());
