@@ -87,7 +87,7 @@
                 <el-card shadow="hover">
                   <div class="feature-item">
                     <el-icon size="32" color="#E6A23C">
-                      <Shield />
+                      <Key />
                     </el-icon>
                     <h4>安全可靠</h4>
                     <p>多重安全保障</p>
@@ -104,7 +104,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { Lock, User, Shield } from '@element-plus/icons-vue'
+import { Lock, User, Key } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 
 const authStore = useAuthStore()

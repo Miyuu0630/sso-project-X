@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import axios from 'axios'
+import request from '@/utils/request'
 import Cookies from 'js-cookie'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -20,6 +20,11 @@ export const useAuthStore = defineStore('auth', () => {
 
   // 初始化认证状态
   const initAuth = async () => {
+    // 如果在callback页面，跳过初始化检查，让callback页面处理登录流程
+    if (window.location.pathname === '/callback') {
+      return
+    }
+
     if (token.value) {
       try {
         await fetchUserData()
@@ -33,7 +38,7 @@ export const useAuthStore = defineStore('auth', () => {
   // 获取用户信息
   const fetchUserInfo = async () => {
     try {
-      const response = await axios.get('/sso/userinfo')
+      const response = await request.get('/sso/userinfo')
       if (response.data.code === 200) {
         userInfo.value = response.data.data
       } else {
@@ -48,7 +53,7 @@ export const useAuthStore = defineStore('auth', () => {
   // 获取用户权限
   const fetchPermissions = async () => {
     try {
-      const response = await axios.get('/sso/user-permissions')
+      const response = await request.get('/sso/user-permissions')
       if (response.data.code === 200) {
         const data = response.data.data
         permissions.value = data.permissions || []
@@ -80,7 +85,7 @@ export const useAuthStore = defineStore('auth', () => {
   // 处理SSO回调
   const handleSsoCallback = async () => {
     try {
-      const response = await axios.get('/sso/check-login')
+      const response = await request.get('/sso/check-login')
       if (response.data.isLogin) {
         setToken(response.data.token)
         await fetchUserData()
@@ -99,7 +104,7 @@ export const useAuthStore = defineStore('auth', () => {
   // 刷新Token
   const refreshToken = async () => {
     try {
-      const response = await axios.post('/sso/refresh-token')
+      const response = await request.post('/sso/refresh-token')
       if (response.data.code === 200) {
         await fetchUserData()
       } else {
@@ -114,7 +119,7 @@ export const useAuthStore = defineStore('auth', () => {
   // 登出
   const logout = async () => {
     try {
-      await axios.post('/sso/logout')
+      await request.post('/sso/logout')
     } catch (error) {
       console.error('登出失败:', error)
     } finally {
@@ -130,7 +135,7 @@ export const useAuthStore = defineStore('auth', () => {
     permissions.value = []
     roles.value = []
     Cookies.remove('satoken')
-    axios.defaults.headers.common['Authorization'] = ''
+    // request 实例会通过拦截器自动处理 token，无需手动设置
   }
 
   // 检查权限
@@ -141,9 +146,7 @@ export const useAuthStore = defineStore('auth', () => {
   const checkTokenValidity = async () => {
     if (!token.value) return false
     try {
-      const response = await axios.get('/sso/verify', {
-        headers: { 'Authorization': `Bearer ${token.value}` }
-      })
+      const response = await request.get('/sso/verify')
       if (response.data.code === 200 && response.data.data.valid) {
         if (response.data.data.userInfo) userInfo.value = response.data.data.userInfo
         return true
@@ -162,7 +165,7 @@ export const useAuthStore = defineStore('auth', () => {
   const setToken = (newToken) => {
     token.value = newToken
     Cookies.set('satoken', newToken, { expires: 7 })
-    axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`
+    // request 实例会通过拦截器自动处理 token，无需手动设置
   }
 
   return {

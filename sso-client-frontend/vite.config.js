@@ -21,6 +21,11 @@ export default defineConfig({
         target: 'http://localhost:8082',
         changeOrigin: true,
         secure: false
+      },
+      '/sso-auth': {
+        target: 'http://localhost:8082',
+        changeOrigin: true,
+        secure: false
       }
     }
   },

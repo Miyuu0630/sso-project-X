@@ -18,8 +18,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class SsoClientConfig implements WebMvcConfigurer {
     
-    @Value("${cors.allowed-origins:http://localhost:3000,http://localhost:8080,http://localhost:8081}")
-    private String[] allowedOrigins;
+    @Value("${cors.allowed-origins:http://localhost:3000,http://localhost:5137,http://localhost:8080,http://localhost:8081}")
+    private String allowedOrigins;
 
     @Value("${cors.allowed-methods:GET,POST,PUT,DELETE,OPTIONS}")
     private String allowedMethods;
@@ -61,7 +61,7 @@ public class SsoClientConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOriginPatterns(allowedOrigins)
+                .allowedOriginPatterns(allowedOrigins.split(","))
                 .allowedMethods(allowedMethods.split(","))
                 .allowedHeaders(allowedHeaders)
                 .allowCredentials(allowCredentials)

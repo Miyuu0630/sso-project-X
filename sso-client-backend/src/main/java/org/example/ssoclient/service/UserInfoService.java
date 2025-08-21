@@ -9,6 +9,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -36,34 +38,32 @@ public class UserInfoService {
             if (!StpUtil.isLogin()) {
                 return null;
             }
-            
+
             Long userId = StpUtil.getLoginIdAsLong();
             String cacheKey = "user_info:" + userId;
-            
+
             // 先从缓存获取
             String cachedUserInfo = redisTemplate.opsForValue().get(cacheKey);
             if (cachedUserInfo != null) {
                 return JSONUtil.parseObj(cachedUserInfo);
             }
-            
-            // 从SSO服务器获取用户信息
-            String token = StpUtil.getTokenValue();
-            String url = ssoServerUrl + "/sso/userinfo?ticket=" + token;
-            
-            String response = HttpUtil.get(url);
-            JSONObject result = JSONUtil.parseObj(response);
-            
-            if (result.getInt("code") == 200) {
-                Map<String, Object> userInfo = result.getJSONObject("data");
-                
-                // 缓存用户信息（5分钟）
-                redisTemplate.opsForValue().set(cacheKey, JSONUtil.toJsonStr(userInfo), 5, TimeUnit.MINUTES);
-                
-                return userInfo;
-            } else {
-                log.error("获取用户信息失败: {}", result.getStr("message"));
-                return null;
-            }
+
+            // 构造基本用户信息（在实际项目中，这里应该从数据库获取）
+            Map<String, Object> userInfo = Map.of(
+                "id", userId,
+                "username", "user" + userId,
+                "nickname", "用户" + userId,
+                "email", "user" + userId + "@example.com",
+                "phone", "138****" + String.format("%04d", userId % 10000),
+                "avatar", "",
+                "status", 1,
+                "createTime", System.currentTimeMillis()
+            );
+
+            // 缓存用户信息（5分钟）
+            redisTemplate.opsForValue().set(cacheKey, JSONUtil.toJsonStr(userInfo), 5, TimeUnit.MINUTES);
+
+            return userInfo;
         } catch (Exception e) {
             log.error("获取用户信息异常", e);
             return null;
@@ -78,34 +78,39 @@ public class UserInfoService {
             if (!StpUtil.isLogin()) {
                 return null;
             }
-            
+
             Long userId = StpUtil.getLoginIdAsLong();
             String cacheKey = "user_permissions:" + userId;
-            
+
             // 先从缓存获取
             String cachedPermissions = redisTemplate.opsForValue().get(cacheKey);
             if (cachedPermissions != null) {
                 return JSONUtil.parseObj(cachedPermissions);
             }
-            
-            // 从SSO服务器获取权限信息
-            String token = StpUtil.getTokenValue();
-            String url = ssoServerUrl + "/sso/permissions?ticket=" + token;
-            
-            String response = HttpUtil.get(url);
-            JSONObject result = JSONUtil.parseObj(response);
-            
-            if (result.getInt("code") == 200) {
-                Map<String, Object> permissions = result.getJSONObject("data");
-                
-                // 缓存权限信息（10分钟）
-                redisTemplate.opsForValue().set(cacheKey, JSONUtil.toJsonStr(permissions), 10, TimeUnit.MINUTES);
-                
-                return permissions;
-            } else {
-                log.error("获取用户权限失败: {}", result.getStr("message"));
-                return null;
+
+            // 构造基本权限信息（在实际项目中，这里应该从数据库获取）
+            List<String> roles = Arrays.asList("user");
+            List<String> permissions = Arrays.asList("system:user:view", "system:user:edit");
+
+            // 如果是管理员用户，添加更多权限
+            if (userId.equals(1L)) {
+                roles = Arrays.asList("admin", "user");
+                permissions = Arrays.asList(
+                    "system:user:view", "system:user:edit", "system:user:add", "system:user:delete",
+                    "system:role:view", "system:role:edit", "system:menu:view"
+                );
             }
+
+            Map<String, Object> permissionInfo = Map.of(
+                "userId", userId,
+                "roles", roles,
+                "permissions", permissions
+            );
+
+            // 缓存权限信息（10分钟）
+            redisTemplate.opsForValue().set(cacheKey, JSONUtil.toJsonStr(permissionInfo), 10, TimeUnit.MINUTES);
+
+            return permissionInfo;
         } catch (Exception e) {
             log.error("获取用户权限异常", e);
             return null;

@@ -67,7 +67,7 @@
                 </li>
               </ul>
             </div>
-          </el-collapse>
+          </el-collapse-item>
         </el-collapse>
       </div>
     </div>
@@ -80,6 +80,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage } from 'element-plus'
 import { SuccessFilled, CircleCloseFilled } from '@element-plus/icons-vue'
+import request from '@/utils/request'
 
 // 路由和状态管理
 const router = useRouter()
@@ -129,33 +130,24 @@ const handleSsoCallback = async () => {
     addDebugStep(`Ticket: ${ticket.substring(0, 20)}...`)
     addDebugStep(`返回地址: ${returnUrl}`)
 
-    // 步骤 1: 验证凭证
+    // 步骤 1: 执行SSO登录
     currentStep.value = 1
-    message.value = '正在验证 Ticket...'
+    message.value = '正在验证 Ticket 并执行登录...'
 
-    // 验证ticket并获取token
-    const response = await axios.get(`/sso/check-ticket?ticket=${ticket}`)
-    if (response.data.code !== 200 || !response.data.data.valid) {
-      throw new Error('Ticket验证失败')
-    }
-
-    const userId = response.data.data.userId
-    addDebugStep(`Ticket验证成功，用户ID: ${userId}`)
-    
-    // 步骤 2: 执行本地登录
-    currentStep.value = 2
-    message.value = '正在执行本地登录...'
-
-    // 调用客户端后端进行本地登录
-    const loginResponse = await axios.post('/sso-auth', { ticket })
+    // 调用客户端后端进行SSO登录（包含ticket验证和本地登录）
+    const loginResponse = await request.post('/sso-auth', { ticket })
     if (loginResponse.data.code !== 200) {
-      throw new Error('本地登录失败')
+      throw new Error(loginResponse.data.message || 'SSO登录失败')
     }
 
-    // 设置token
-    const token = loginResponse.data.data.token
+    // 设置token和用户信息
+    const { userId, token } = loginResponse.data.data
     authStore.setToken(token)
-    addDebugStep('本地登录成功，Token已设置')
+    addDebugStep(`SSO登录成功，用户ID: ${userId}，Token已设置`)
+
+    // 步骤 2: 获取用户详细信息
+    currentStep.value = 2
+    message.value = '正在获取用户信息...'
 
     // 获取用户信息
     await authStore.fetchUserData()
