@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.5.4</version>
+		<version>3.4.2</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>org.example</groupId>
@@ -29,9 +29,10 @@
 	<properties>
 		<java.version>17</java.version>
 		<lombok.version>1.18.30</lombok.version>
-		<mybatis.version>3.0.3</mybatis.version>
+		<mybatis-plus.version>3.5.8</mybatis-plus.version>
 		<sa-token.version>1.44.0</sa-token.version>
 		<hutool.version>5.8.22</hutool.version>
+		<springdoc.version>2.2.0</springdoc.version>
 	</properties>
 	<dependencies>
 		<!-- SSO Common Module -->
@@ -51,10 +52,16 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-thymeleaf</artifactId>
 		</dependency>
-		<!-- MyBatis -->
+		<!-- MyBatis Plus -->
 		<dependency>
-			<groupId>org.mybatis.spring.boot</groupId>
-			<artifactId>mybatis-spring-boot-starter</artifactId>
+			<groupId>com.baomidou</groupId>
+			<artifactId>mybatis-plus-boot-starter</artifactId>
+			<version>${mybatis-plus.version}</version>
+		</dependency>
+		<!-- Force Spring 6 compatible mybatis-spring to avoid factoryBeanObjectType=String issue -->
+		<dependency>
+			<groupId>org.mybatis</groupId>
+			<artifactId>mybatis-spring</artifactId>
 			<version>3.0.3</version>
 		</dependency>
 
@@ -78,6 +85,12 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
+		</dependency>
+
+		<!-- Jackson JSR310 时间模块 -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.datatype</groupId>
+			<artifactId>jackson-datatype-jsr310</artifactId>
 		</dependency>
 
 		<!-- Sa-Token 权限认证，在线文档：https://sa-token.cc -->
@@ -137,6 +150,14 @@
 			<artifactId>dysmsapi20170525</artifactId>
 			<version>3.0.0</version>
 		</dependency>
+
+		<!-- SpringDoc OpenAPI 3 (Swagger 3) -->
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+			<version>${springdoc.version}</version>
+		</dependency>
+
 	</dependencies>
 
 	<build>
@@ -169,6 +190,15 @@
 							<artifactId>lombok</artifactId>
 						</exclude>
 					</excludes>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>3.5.3</version>
+				<configuration>
+					<argLine>-Djdk.net.URLClassPath.disableClassPathURLCheck=true</argLine>
+					<skipTests>false</skipTests>
 				</configuration>
 			</plugin>
 		</plugins>

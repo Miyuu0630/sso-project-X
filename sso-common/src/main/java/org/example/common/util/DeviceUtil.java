@@ -1,7 +1,9 @@
 package org.example.common.util;
 
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.crypto.digest.DigestUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.example.common.enums.DeviceType;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -10,6 +12,7 @@ import java.util.regex.Pattern;
 
 /**
  * 设备信息工具类
+ * 提供设备类型识别、设备指纹生成、浏览器识别等功能
  */
 @Slf4j
 public class DeviceUtil {
@@ -182,8 +185,82 @@ public class DeviceUtil {
         if (StrUtil.isBlank(userAgent)) {
             return false;
         }
-        
+
         String deviceType = parseDeviceType(userAgent);
         return "mobile".equals(deviceType) || "tablet".equals(deviceType);
+    }
+
+    /**
+     * 获取设备信息字符串
+     */
+    public static String getDeviceInfo(String userAgent) {
+        Map<String, String> deviceInfo = parseUserAgent(userAgent);
+        return String.format("%s on %s", deviceInfo.get("browser"), deviceInfo.get("os"));
+    }
+
+    /**
+     * 生成简单设备指纹
+     */
+    public static String generateSimpleDeviceFingerprint(String userAgent, String clientIp) {
+        return generateDeviceFingerprint(userAgent, clientIp);
+    }
+
+    /**
+     * 获取浏览器名称
+     */
+    public static String getBrowserName(String userAgent) {
+        Map<String, String> deviceInfo = parseUserAgent(userAgent);
+        return deviceInfo.get("browser");
+    }
+
+    /**
+     * 获取操作系统
+     */
+    public static String getOperatingSystem(String userAgent) {
+        Map<String, String> deviceInfo = parseUserAgent(userAgent);
+        return deviceInfo.get("os");
+    }
+
+    /**
+     * 获取设备风险等级
+     */
+    public static String getDeviceRiskLevel(String userAgent, boolean isNewDevice) {
+        if (isNewDevice) {
+            return "MEDIUM";
+        }
+
+        // 检查是否为可疑User-Agent
+        if (StrUtil.isBlank(userAgent) || userAgent.length() < 10) {
+            return "HIGH";
+        }
+
+        // 检查是否为爬虫或自动化工具
+        String lowerUserAgent = userAgent.toLowerCase();
+        if (lowerUserAgent.contains("bot") ||
+            lowerUserAgent.contains("crawler") ||
+            lowerUserAgent.contains("spider") ||
+            lowerUserAgent.contains("curl") ||
+            lowerUserAgent.contains("wget")) {
+            return "HIGH";
+        }
+
+        return "LOW";
+    }
+
+    /**
+     * 获取设备类型
+     */
+    public static DeviceType getDeviceType(String userAgent) {
+        String deviceTypeStr = parseDeviceType(userAgent);
+        switch (deviceTypeStr) {
+            case "mobile":
+                return DeviceType.MOBILE;
+            case "tablet":
+                return DeviceType.TABLET;
+            case "desktop":
+                return DeviceType.DESKTOP;
+            default:
+                return DeviceType.UNKNOWN;
+        }
     }
 }

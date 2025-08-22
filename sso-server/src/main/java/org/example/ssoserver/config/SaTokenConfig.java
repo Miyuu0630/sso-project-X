@@ -5,31 +5,22 @@ import cn.dev33.satoken.router.SaRouter;
 import cn.dev33.satoken.stp.StpInterface;
 import cn.dev33.satoken.stp.StpUtil;
 import lombok.RequiredArgsConstructor;
-import org.example.ssoserver.service.SysMenuService;
-import org.example.ssoserver.service.SysRoleService;
-import org.springframework.beans.factory.annotation.Qualifier;
+import org.example.ssoserver.service.PermissionService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Sa-Token配置类
  */
 @Configuration
+@RequiredArgsConstructor
 public class SaTokenConfig implements WebMvcConfigurer {
 
-    private final SysRoleService roleService;
-    private final SysMenuService menuService;
-
-    public SaTokenConfig(@Qualifier("sysRoleServiceImpl") SysRoleService roleService,
-                        @Qualifier("sysMenuServiceImpl") SysMenuService menuService) {
-        this.roleService = roleService;
-        this.menuService = menuService;
-    }
+    private final PermissionService permissionService;
     
     /**
      * 注册Sa-Token拦截器
@@ -62,20 +53,25 @@ public class SaTokenConfig implements WebMvcConfigurer {
              */
             @Override
             public List<String> getPermissionList(Object loginId, String loginType) {
-                Long userId = Long.valueOf(loginId.toString());
-                return menuService.getUserPermissions(userId);
+                try {
+                    Long userId = Long.valueOf(loginId.toString());
+                    return permissionService.getUserPermissions(userId);
+                } catch (Exception e) {
+                    return List.of();
+                }
             }
-            
+
             /**
              * 返回一个账号所拥有的角色标识集合
              */
             @Override
             public List<String> getRoleList(Object loginId, String loginType) {
-                Long userId = Long.valueOf(loginId.toString());
-                return roleService.getUserRoles(userId)
-                    .stream()
-                    .map(role -> role.getRoleKey())
-                    .collect(Collectors.toList());
+                try {
+                    Long userId = Long.valueOf(loginId.toString());
+                    return permissionService.getUserRoles(userId);
+                } catch (Exception e) {
+                    return List.of();
+                }
             }
         };
     }

@@ -39,16 +39,17 @@ public class SsoClientController {
 
         try {
             if (ticket != null && !ticket.isEmpty()) {
-                // 验证ticket
-                String url = ssoServerUrl + "/sso/check-ticket?ticket=" + ticket;
-                String response = HttpUtil.get(url);
+                // 验证ticket - 使用正确的接口
+                String url = ssoServerUrl + "/sso/validate";
+                Map<String, Object> params = Map.of("ticket", ticket);
+                String response = HttpUtil.post(url, params);
                 JSONObject result = JSONUtil.parseObj(response);
 
                 if (result.getInt("code") == 200) {
                     JSONObject data = result.getJSONObject("data");
-                    if (data.getBool("valid")) {
+                    if (data != null) {
                         // ticket有效，执行本地登录
-                        String userId = data.getStr("userId");
+                        String userId = data.getStr("id");
                         StpUtil.login(userId);
 
                         log.info("SSO登录成功，用户ID: {}", userId);
@@ -93,16 +94,17 @@ public class SsoClientController {
 
         try {
             if (ticket != null && !ticket.isEmpty()) {
-                // 验证ticket
-                String url = ssoServerUrl + "/sso/check-ticket?ticket=" + ticket;
-                String response = HttpUtil.get(url);
+                // 验证ticket - 使用正确的接口
+                String url = ssoServerUrl + "/sso/validate";
+                Map<String, Object> params = Map.of("ticket", ticket);
+                String response = HttpUtil.post(url, params);
                 JSONObject result = JSONUtil.parseObj(response);
 
                 if (result.getInt("code") == 200) {
                     JSONObject data = result.getJSONObject("data");
-                    if (data.getBool("valid")) {
+                    if (data != null) {
                         // ticket有效，执行本地登录
-                        String userId = data.getStr("userId");
+                        String userId = data.getStr("id");
                         StpUtil.login(userId);
 
                         log.info("SSO POST登录成功，用户ID: {}", userId);

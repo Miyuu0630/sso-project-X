@@ -9,7 +9,7 @@ import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfi
     scanBasePackages = {"org.example.ssoserver", "org.example.common"},
     exclude = {SecurityAutoConfiguration.class}  // 排除Spring Security自动配置
 )
-@MapperScan(basePackages = {"org.example.common.mapper", "org.example.ssoserver.mapper"})
+@MapperScan(basePackages = "org.example.ssoserver.mapper")
 public class SsoServerApplication {
 
 	public static void main(String[] args) {

@@ -1,9 +1,6 @@
 package org.example.ssoserver.config;
 
-import org.example.common.mapper.SysLoginLogMapper;
-import org.example.common.mapper.SysMenuMapper;
-import org.example.common.mapper.SysRoleMapper;
-import org.example.common.mapper.SysUserMapper;
+import org.example.ssoserver.mapper.*;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
@@ -38,5 +35,23 @@ public class TestConfig {
     @Primary
     public SysLoginLogMapper sysLoginLogMapper() {
         return mock(SysLoginLogMapper.class);
+    }
+
+    @Bean
+    @Primary
+    public SysRoleMenuMapper sysRoleMenuMapper() {
+        return mock(SysRoleMenuMapper.class);
+    }
+
+    @Bean
+    @Primary
+    public SysUserRoleMapper sysUserRoleMapper() {
+        return mock(SysUserRoleMapper.class);
+    }
+
+    @Bean
+    @Primary
+    public UserDeviceMapper userDeviceMapper() {
+        return mock(UserDeviceMapper.class);
     }
 }

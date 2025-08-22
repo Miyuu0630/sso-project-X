@@ -2,7 +2,7 @@ package org.example.ssoserver.service;
 
 
 import jakarta.servlet.http.HttpServletRequest;
-import org.example.common.entity.UserDevice;
+import org.example.ssoserver.entity.UserDevice;
 import org.example.common.result.Result;
 
 import java.util.List;

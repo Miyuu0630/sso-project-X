@@ -14,19 +14,21 @@ public enum ResultCode {
     UNAUTHORIZED(401, "未授权"),
     FORBIDDEN(403, "禁止访问"),
     NOT_FOUND(404, "资源不存在"),
+    METHOD_NOT_ALLOWED(405, "请求方法不支持"),
     PARAM_ERROR(400, "参数错误"),
     
     // 用户相关 (1000-1999)
     USER_NOT_FOUND(1001, "用户不存在"),
     USER_DISABLED(1002, "用户已被禁用"),
-    USERNAME_EXISTS(1003, "用户名已存在"),
-    PHONE_EXISTS(1004, "手机号已存在"),
-    EMAIL_EXISTS(1005, "邮箱已存在"),
-    PASSWORD_ERROR(1006, "密码错误"),
-    OLD_PASSWORD_ERROR(1007, "原密码错误"),
-    PASSWORD_NOT_MATCH(1008, "两次密码不一致"),
-    USER_LOCKED(1009, "用户已被锁定"),
-    USER_EXPIRED(1010, "用户已过期"),
+    ACCOUNT_DISABLED(1003, "账号已被禁用"),
+    USERNAME_EXISTS(1004, "用户名已存在"),
+    PHONE_EXISTS(1005, "手机号已存在"),
+    EMAIL_EXISTS(1006, "邮箱已存在"),
+    PASSWORD_ERROR(1007, "密码错误"),
+    OLD_PASSWORD_ERROR(1008, "原密码错误"),
+    PASSWORD_NOT_MATCH(1009, "两次密码不一致"),
+    USER_LOCKED(1010, "用户已被锁定"),
+    USER_EXPIRED(1011, "用户已过期"),
     
     // 验证码相关 (2000-2999)
     CAPTCHA_ERROR(2001, "验证码错误"),
@@ -42,6 +44,8 @@ public enum ResultCode {
     MULTI_DEVICE_LOGIN(3004, "检测到多设备登录"),
     TOKEN_INVALID(3005, "Token无效"),
     TOKEN_EXPIRED(3006, "Token已过期"),
+    LOGIN_FAIL_TOO_MANY(3007, "登录失败次数过多"),
+    OAUTH_LOGIN_FAILED(3008, "第三方登录失败"),
     
     // 权限相关 (4000-4999)
     PERMISSION_DENIED(4001, "权限不足"),
