@@ -74,6 +74,7 @@ public class SsoController {
 
                 try {
                     response.setContentType("text/html;charset=UTF-8");
+                    // 使用动态生成的HTML，但修复JavaScript问题
                     String loginHtml = getLoginPageHtml(redirect, clientId);
                     response.getWriter().write(loginHtml);
                     response.getWriter().flush();
@@ -111,22 +112,24 @@ public class SsoController {
                        @RequestParam String password,
                        @RequestParam(required = false) String redirect,
                        @RequestParam(required = false) String clientId,
+                       @RequestParam(required = false) String expectedRole,
                        HttpServletRequest request,
                        HttpServletResponse response) throws IOException {
         try {
-            log.info("SSO登录请求: username={}, redirect={}, clientId={}", username, redirect, clientId);
+            log.info("SSO登录请求: username={}, redirect={}, clientId={}, expectedRole={}", username, redirect, clientId, expectedRole);
 
             // 构建登录请求
-            LoginRequest loginRequest = new LoginRequest();
-            loginRequest.setAccount(username);
-            loginRequest.setPassword(password);
-            loginRequest.setLoginType(LoginType.PASSWORD.getCode());
-
-            // 设置设备和请求信息
-            loginRequest.setUserAgent(request.getHeader("User-Agent"));
-            loginRequest.setClientIp(getClientIp(request));
-            loginRequest.setRedirectUri(redirect);
-            loginRequest.setClientId(clientId);
+            LoginRequest loginRequest = LoginRequest.builder()
+                .account(username)
+                .password(password)
+                .loginType(LoginType.PASSWORD.getCode())
+                .expectedRole(expectedRole)
+                .rememberMe(false)  // 明确设置rememberMe字段
+                .userAgent(request.getHeader("User-Agent"))
+                .clientIp(getClientIp(request))
+                .redirectUri(redirect)
+                .clientId(clientId)
+                .build();
 
             // 执行登录
             LoginResponse loginResponse = authService.ssoLogin(loginRequest);
@@ -331,7 +334,8 @@ public class SsoController {
      */
     private String buildRedirectUrl(String redirect, String ticket) {
         if (StrUtil.isBlank(redirect)) {
-            redirect = "http://localhost:8082/"; // 默认客户端地址
+            // 默认跳转到前端客户端的回调页面
+            redirect = "http://localhost:5137/callback";
         }
 
         if (redirect.contains("?")) {
@@ -349,66 +353,205 @@ public class SsoController {
         String clientIdValue = clientId != null ? clientId : "";
 
         return "<!DOCTYPE html>" +
-            "<html>" +
+            "<html lang=\"zh-CN\">" +
             "<head>" +
             "<meta charset=\"UTF-8\">" +
-            "<title>SSO统一登录</title>" +
+            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">" +
+            "<title>SSO统一登录 - 企业级单点登录系统</title>" +
             "<style>" +
-            "body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 50px; }" +
-            ".login-container { max-width: 400px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }" +
-            ".login-title { text-align: center; color: #333; margin-bottom: 30px; }" +
+            "* { margin: 0; padding: 0; box-sizing: border-box; }" +
+            "body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; }" +
+            ".login-container { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); width: 100%; max-width: 420px; }" +
+            ".login-header { text-align: center; margin-bottom: 30px; }" +
+            ".login-header h1 { color: #333; font-size: 28px; margin-bottom: 8px; }" +
+            ".login-header p { color: #666; font-size: 14px; }" +
+            ".role-selector { margin-bottom: 25px; }" +
+            ".role-selector label { display: block; margin-bottom: 8px; color: #555; font-weight: 500; }" +
+            ".role-tabs { display: flex; border: 1px solid #e0e0e0; border-radius: 6px; overflow: hidden; }" +
+            ".role-tab { flex: 1; padding: 10px 8px; text-align: center; background: #f8f9fa; border: none; cursor: pointer; font-size: 12px; color: #666; transition: all 0.3s; }" +
+            ".role-tab.active { background: #007bff; color: white; }" +
+            ".role-tab:hover:not(.active) { background: #e9ecef; }" +
             ".form-group { margin-bottom: 20px; }" +
-            ".form-group label { display: block; margin-bottom: 5px; color: #555; }" +
-            ".form-group input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }" +
-            ".login-btn { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }" +
-            ".login-btn:hover { background: #0056b3; }" +
-            ".error-msg { color: #dc3545; margin-top: 10px; display: none; }" +
+            ".form-group label { display: block; margin-bottom: 8px; color: #555; font-weight: 500; }" +
+            ".form-group input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; transition: border-color 0.3s; }" +
+            ".form-group input:focus { outline: none; border-color: #007bff; box-shadow: 0 0 0 2px rgba(0,123,255,0.25); }" +
+            ".login-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #007bff, #0056b3); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 500; transition: all 0.3s; }" +
+            ".login-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,123,255,0.3); }" +
+            ".login-btn:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }" +
+            ".message { margin-top: 15px; padding: 10px; border-radius: 6px; font-size: 14px; display: none; }" +
+            ".error-msg { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }" +
+            ".success-msg { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }" +
+            ".demo-accounts { margin-top: 25px; padding: 15px; background: #f8f9fa; border-radius: 6px; font-size: 12px; }" +
+            ".demo-accounts h4 { color: #666; margin-bottom: 8px; }" +
+            ".demo-accounts .account-item { margin: 5px 0; padding: 5px 8px; background: white; border-radius: 4px; cursor: pointer; transition: background 0.2s; }" +
+            ".demo-accounts .account-item:hover { background: #e9ecef; }" +
+            ".demo-accounts .role-badge { display: inline-block; padding: 2px 6px; background: #007bff; color: white; border-radius: 3px; font-size: 10px; margin-left: 5px; }" +
             "</style>" +
             "</head>" +
             "<body>" +
             "<div class=\"login-container\">" +
-            "<h2 class=\"login-title\">SSO统一登录</h2>" +
-            "<form id=\"loginForm\" action=\"/sso/doLogin\" method=\"post\">" +
+            "<div class=\"login-header\">" +
+            "<h1>SSO统一登录</h1>" +
+            "<p>企业级单点登录系统</p>" +
+            "</div>" +
+
+            "<div class=\"role-selector\">" +
+            "<label>选择用户类型：</label>" +
+            "<div class=\"role-tabs\">" +
+            "<button type=\"button\" class=\"role-tab active\" onclick=\"document.getElementById('selectedRole').value='PERSONAL_USER'; document.querySelectorAll('.role-tab').forEach(tab => { tab.classList.remove('active'); if(tab.dataset.role==='PERSONAL_USER') tab.classList.add('active'); }); console.log('选择角色: PERSONAL_USER');\" data-role=\"PERSONAL_USER\">个人用户</button>" +
+            "<button type=\"button\" class=\"role-tab\" onclick=\"document.getElementById('selectedRole').value='ENTERPRISE_USER'; document.querySelectorAll('.role-tab').forEach(tab => { tab.classList.remove('active'); if(tab.dataset.role==='ENTERPRISE_USER') tab.classList.add('active'); }); console.log('选择角色: ENTERPRISE_USER');\" data-role=\"ENTERPRISE_USER\">企业用户</button>" +
+            "<button type=\"button\" class=\"role-tab\" onclick=\"document.getElementById('selectedRole').value='AIRLINE_USER'; document.querySelectorAll('.role-tab').forEach(tab => { tab.classList.remove('active'); if(tab.dataset.role==='AIRLINE_USER') tab.classList.add('active'); }); console.log('选择角色: AIRLINE_USER');\" data-role=\"AIRLINE_USER\">航司用户</button>" +
+            "<button type=\"button\" class=\"role-tab\" onclick=\"document.getElementById('selectedRole').value='ADMIN'; document.querySelectorAll('.role-tab').forEach(tab => { tab.classList.remove('active'); if(tab.dataset.role==='ADMIN') tab.classList.add('active'); }); console.log('选择角色: ADMIN');\" data-role=\"ADMIN\">管理员</button>" +
+            "</div>" +
+            "</div>" +
+
+            "<form id=\"loginForm\">" +
             "<input type=\"hidden\" name=\"redirect\" value=\"" + redirectValue + "\">" +
             "<input type=\"hidden\" name=\"clientId\" value=\"" + clientIdValue + "\">" +
+            "<input type=\"hidden\" id=\"selectedRole\" name=\"expectedRole\" value=\"PERSONAL_USER\">" +
+
             "<div class=\"form-group\">" +
-            "<label for=\"username\">用户名/手机号/邮箱:</label>" +
-            "<input type=\"text\" id=\"username\" name=\"username\" required>" +
+            "<label for=\"username\">用户名/手机号/邮箱</label>" +
+            "<input type=\"text\" id=\"username\" name=\"username\" required placeholder=\"请输入用户名\">" +
             "</div>" +
+
             "<div class=\"form-group\">" +
-            "<label for=\"password\">密码:</label>" +
-            "<input type=\"password\" id=\"password\" name=\"password\" required>" +
+            "<label for=\"password\">密码</label>" +
+            "<input type=\"password\" id=\"password\" name=\"password\" required placeholder=\"请输入密码\">" +
             "</div>" +
-            "<button type=\"submit\" class=\"login-btn\">登录</button>" +
-            "<div class=\"error-msg\" id=\"errorMsg\"></div>" +
+
+            "<button type=\"button\" class=\"login-btn\" id=\"loginBtn\" onclick=\"(function(){const username=document.getElementById('username').value;const password=document.getElementById('password').value;const expectedRole=document.getElementById('selectedRole').value;if(!username||!password){alert('请输入用户名和密码');return;}const formData=new FormData();formData.append('username',username);formData.append('password',password);formData.append('expectedRole',expectedRole);const loginBtn=document.getElementById('loginBtn');const errorMsg=document.getElementById('errorMsg');const successMsg=document.getElementById('successMsg');errorMsg.style.display='none';successMsg.style.display='none';loginBtn.disabled=true;loginBtn.textContent='登录中...';fetch('/sso/doLogin',{method:'POST',body:formData}).then(response=>response.json()).then(data=>{console.log('登录响应:',data);if(data.code===200){successMsg.textContent='登录成功，正在跳转...';successMsg.style.display='block';setTimeout(()=>{if(data.data&&data.data.redirectUrl){console.log('跳转到:',data.data.redirectUrl);window.location.href=data.data.redirectUrl;}else{console.log('跳转到默认地址');window.location.href='/';}},1000);}else{errorMsg.textContent=data.message||'登录失败，请检查用户名和密码';errorMsg.style.display='block';}}).catch(error=>{console.error('登录错误:',error);errorMsg.textContent='网络错误，请稍后重试';errorMsg.style.display='block';}).finally(()=>{loginBtn.disabled=false;loginBtn.textContent='登录';});})()\">登录</button>" +
+
+            "<div class=\"message error-msg\" id=\"errorMsg\"></div>" +
+            "<div class=\"message success-msg\" id=\"successMsg\"></div>" +
             "</form>" +
+
+            "<div class=\"demo-accounts\">" +
+            "<h4>测试账号：</h4>" +
+            "<div class=\"account-item\" onclick=\"document.getElementById('username').value='admin'; document.getElementById('password').value='123456'; document.getElementById('selectedRole').value='ADMIN'; document.querySelectorAll('.role-tab').forEach(tab => { tab.classList.remove('active'); if(tab.dataset.role==='ADMIN') tab.classList.add('active'); }); console.log('填充管理员账号');\">管理员: admin / 123456 <span class=\"role-badge\">ADMIN</span></div>" +
+            "<div class=\"account-item\" onclick=\"document.getElementById('username').value='airline_user'; document.getElementById('password').value='123456'; document.getElementById('selectedRole').value='AIRLINE_USER'; document.querySelectorAll('.role-tab').forEach(tab => { tab.classList.remove('active'); if(tab.dataset.role==='AIRLINE_USER') tab.classList.add('active'); }); console.log('填充航司用户账号');\">航司用户: airline_user / 123456 <span class=\"role-badge\">AIRLINE</span></div>" +
+            "<div class=\"account-item\" onclick=\"document.getElementById('username').value='enterprise_user'; document.getElementById('password').value='123456'; document.getElementById('selectedRole').value='ENTERPRISE_USER'; document.querySelectorAll('.role-tab').forEach(tab => { tab.classList.remove('active'); if(tab.dataset.role==='ENTERPRISE_USER') tab.classList.add('active'); }); console.log('填充企业用户账号');\">企业用户: enterprise_user / 123456 <span class=\"role-badge\">ENTERPRISE</span></div>" +
+            "<div class=\"account-item\" onclick=\"document.getElementById('username').value='personal_user'; document.getElementById('password').value='123456'; document.getElementById('selectedRole').value='PERSONAL_USER'; document.querySelectorAll('.role-tab').forEach(tab => { tab.classList.remove('active'); if(tab.dataset.role==='PERSONAL_USER') tab.classList.add('active'); }); console.log('填充个人用户账号');\">个人用户: personal_user / 123456 <span class=\"role-badge\">PERSONAL</span></div>" +
+            "</div>" +
             "</div>" +
             "<script>" +
-            "document.getElementById('loginForm').addEventListener('submit', function(e) {" +
-            "e.preventDefault();" +
-            "const formData = new FormData(this);" +
-            "fetch('/sso/doLogin', {" +
-            "method: 'POST'," +
-            "body: formData" +
-            "})" +
-            ".then(response => response.json())" +
-            ".then(data => {" +
-            "if (data.code === 200) {" +
-            "if (data.data && data.data.redirectUrl) {" +
-            "window.location.href = data.data.redirectUrl;" +
-            "} else {" +
-            "window.location.href = '/sso/auth?redirect=" + redirectValue + "&clientId=" + clientIdValue + "';" +
+            "// 全局变量" +
+            "let currentRole = 'PERSONAL_USER';" +
+            "" +
+            "// 角色选择功能 - 使用内联onclick" +
+            "function selectRole(role) {" +
+            "  console.log('选择角色:', role);" +
+            "  currentRole = role;" +
+            "  " +
+            "  // 更新隐藏字段" +
+            "  document.getElementById('selectedRole').value = role;" +
+            "  " +
+            "  // 更新UI显示" +
+            "  document.querySelectorAll('.role-tab').forEach(tab => {" +
+            "    tab.classList.remove('active');" +
+            "    if (tab.dataset.role === role) {" +
+            "      tab.classList.add('active');" +
+            "    }" +
+            "  });" +
+            "  " +
+            "  console.log('当前选择角色:', currentRole);" +
             "}" +
-            "} else {" +
-            "document.getElementById('errorMsg').textContent = data.message || '登录失败';" +
-            "document.getElementById('errorMsg').style.display = 'block';" +
+            "" +
+            "// 快速填充账号" +
+            "function fillAccount(username, password) {" +
+            "  console.log('填充账号:', username, password);" +
+            "  " +
+            "  document.getElementById('username').value = username;" +
+            "  document.getElementById('password').value = password;" +
+            "  " +
+            "  // 根据用户名自动选择对应角色" +
+            "  let expectedRole = 'PERSONAL_USER';" +
+            "  if (username === 'admin') {" +
+            "    expectedRole = 'ADMIN';" +
+            "  } else if (username === 'airline_user') {" +
+            "    expectedRole = 'AIRLINE_USER';" +
+            "  } else if (username === 'enterprise_user') {" +
+            "    expectedRole = 'ENTERPRISE_USER';" +
+            "  } else if (username === 'personal_user') {" +
+            "    expectedRole = 'PERSONAL_USER';" +
+            "  }" +
+            "  " +
+            "  // 调用角色选择函数" +
+            "  selectRole(expectedRole);" +
             "}" +
-            "})" +
-            ".catch(error => {" +
-            "document.getElementById('errorMsg').textContent = '网络错误，请重试';" +
-            "document.getElementById('errorMsg').style.display = 'block';" +
-            "});" +
-            "});" +
+            "" +
+            "// 登录表单提交" +
+            "function submitLogin() {" +
+            "  console.log('提交登录，当前角色:', currentRole);" +
+            "  " +
+            "  const username = document.getElementById('username').value;" +
+            "  const password = document.getElementById('password').value;" +
+            "  " +
+            "  if (!username || !password) {" +
+            "    alert('请输入用户名和密码');" +
+            "    return;" +
+            "  }" +
+            "  " +
+            "  // 构建FormData" +
+            "  const formData = new FormData();" +
+            "  formData.append('username', username);" +
+            "  formData.append('password', password);" +
+            "  formData.append('expectedRole', currentRole);" +
+            "  " +
+            "  const loginBtn = document.getElementById('loginBtn');" +
+            "  const errorMsg = document.getElementById('errorMsg');" +
+            "  const successMsg = document.getElementById('successMsg');" +
+            "" +
+            "  // 隐藏消息" +
+            "  errorMsg.style.display = 'none';" +
+            "  successMsg.style.display = 'none';" +
+            "" +
+            "  // 禁用按钮" +
+            "  loginBtn.disabled = true;" +
+            "  loginBtn.textContent = '登录中...';" +
+            "" +
+            "  fetch('/sso/doLogin', {" +
+            "    method: 'POST'," +
+            "    body: formData" +
+            "  })" +
+            "  .then(response => response.json())" +
+            "  .then(data => {" +
+            "    console.log('登录响应:', data);" +
+            "    " +
+            "    if (data.code === 200) {" +
+            "      successMsg.textContent = '登录成功，正在跳转...';" +
+            "      successMsg.style.display = 'block';" +
+            "      " +
+            "      setTimeout(() => {" +
+            "        if (data.data && data.data.redirectUrl) {" +
+            "          console.log('跳转到:', data.data.redirectUrl);" +
+            "          window.location.href = data.data.redirectUrl;" +
+            "        } else {" +
+            "          console.log('跳转到默认地址');" +
+            "          window.location.href = '/';" +
+            "        }" +
+            "      }, 1000);" +
+            "    } else {" +
+            "      errorMsg.textContent = data.message || '登录失败，请检查用户名和密码';" +
+            "      errorMsg.style.display = 'block';" +
+            "    }" +
+            "  })" +
+            "  .catch(error => {" +
+            "    console.error('登录错误:', error);" +
+            "    errorMsg.textContent = '网络错误，请稍后重试';" +
+            "    errorMsg.style.display = 'block';" +
+            "  })" +
+            "  .finally(() => {" +
+            "    loginBtn.disabled = false;" +
+            "    loginBtn.textContent = '登录';" +
+            "  });" +
+            "}" +
+            "" +
+            "// 页面加载完成后初始化" +
+            "window.onload = function() {" +
+            "  console.log('页面加载完成，初始化完成');" +
+            "  console.log('当前选择角色:', currentRole);" +
+            "};" +
             "</script>" +
             "</body>" +
             "</html>";

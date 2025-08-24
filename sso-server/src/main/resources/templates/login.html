@@ -3,216 +3,381 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SSO 统一登录</title>
+    <title>SSO统一登录 - 企业级单点登录系统</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
         }
         
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            min-height: 100vh; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
         }
         
-        .login-container {
-            background: white;
-            padding: 40px;
-            border-radius: 10px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 400px;
+        .login-container { 
+            background: white; 
+            padding: 40px; 
+            border-radius: 12px; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1); 
+            width: 100%; 
+            max-width: 420px; 
         }
         
-        .login-header {
-            text-align: center;
-            margin-bottom: 30px;
+        .login-header { 
+            text-align: center; 
+            margin-bottom: 30px; 
         }
         
-        .login-header h1 {
-            color: #333;
-            font-size: 28px;
-            margin-bottom: 10px;
+        .login-header h1 { 
+            color: #333; 
+            font-size: 28px; 
+            margin-bottom: 8px; 
         }
         
-        .login-header p {
-            color: #666;
-            font-size: 14px;
+        .login-header p { 
+            color: #666; 
+            font-size: 14px; 
         }
         
-        .form-group {
-            margin-bottom: 20px;
+        .role-selector { 
+            margin-bottom: 25px; 
         }
         
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            color: #333;
-            font-weight: 500;
+        .role-selector label { 
+            display: block; 
+            margin-bottom: 8px; 
+            color: #555; 
+            font-weight: 500; 
         }
         
-        .form-group input {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e1e1e1;
-            border-radius: 5px;
-            font-size: 16px;
-            transition: border-color 0.3s;
+        .role-tabs { 
+            display: flex; 
+            border: 1px solid #e0e0e0; 
+            border-radius: 6px; 
+            overflow: hidden; 
         }
         
-        .form-group input:focus {
-            outline: none;
-            border-color: #667eea;
+        .role-tab { 
+            flex: 1; 
+            padding: 10px 8px; 
+            text-align: center; 
+            background: #f8f9fa; 
+            border: none; 
+            cursor: pointer; 
+            font-size: 12px; 
+            color: #666; 
+            transition: all 0.3s; 
         }
         
-        .login-btn {
-            width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: transform 0.2s;
+        .role-tab.active { 
+            background: #007bff; 
+            color: white; 
         }
         
-        .login-btn:hover {
-            transform: translateY(-2px);
+        .role-tab:hover:not(.active) { 
+            background: #e9ecef; 
         }
         
-        .login-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
+        .form-group { 
+            margin-bottom: 20px; 
         }
         
-        .error-message {
-            color: #e74c3c;
-            font-size: 14px;
-            margin-top: 10px;
-            text-align: center;
-            display: none;
+        .form-group label { 
+            display: block; 
+            margin-bottom: 8px; 
+            color: #555; 
+            font-weight: 500; 
         }
         
-        .success-message {
-            color: #27ae60;
-            font-size: 14px;
-            margin-top: 10px;
-            text-align: center;
-            display: none;
+        .form-group input { 
+            width: 100%; 
+            padding: 12px; 
+            border: 1px solid #ddd; 
+            border-radius: 6px; 
+            font-size: 14px; 
+            transition: border-color 0.3s; 
         }
         
-        .demo-accounts {
-            margin-top: 20px;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 5px;
-            font-size: 12px;
-            color: #666;
+        .form-group input:focus { 
+            outline: none; 
+            border-color: #007bff; 
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.25); 
         }
         
-        .demo-accounts h4 {
-            margin-bottom: 8px;
-            color: #333;
+        .login-btn { 
+            width: 100%; 
+            padding: 14px; 
+            background: linear-gradient(135deg, #007bff, #0056b3); 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-size: 16px; 
+            font-weight: 500; 
+            transition: all 0.3s; 
+        }
+        
+        .login-btn:hover { 
+            transform: translateY(-1px); 
+            box-shadow: 0 4px 12px rgba(0,123,255,0.3); 
+        }
+        
+        .login-btn:disabled { 
+            background: #ccc; 
+            cursor: not-allowed; 
+            transform: none; 
+            box-shadow: none; 
+        }
+        
+        .message { 
+            margin-top: 15px; 
+            padding: 10px; 
+            border-radius: 6px; 
+            font-size: 14px; 
+            display: none; 
+        }
+        
+        .error-msg { 
+            background: #f8d7da; 
+            color: #721c24; 
+            border: 1px solid #f5c6cb; 
+        }
+        
+        .success-msg { 
+            background: #d4edda; 
+            color: #155724; 
+            border: 1px solid #c3e6cb; 
+        }
+        
+        .demo-accounts { 
+            margin-top: 25px; 
+            padding: 15px; 
+            background: #f8f9fa; 
+            border-radius: 6px; 
+            font-size: 12px; 
+        }
+        
+        .demo-accounts h4 { 
+            color: #666; 
+            margin-bottom: 8px; 
+        }
+        
+        .demo-accounts .account-item { 
+            margin: 5px 0; 
+            padding: 5px 8px; 
+            background: white; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            transition: background 0.2s; 
+        }
+        
+        .demo-accounts .account-item:hover { 
+            background: #e9ecef; 
+        }
+        
+        .demo-accounts .role-badge { 
+            display: inline-block; 
+            padding: 2px 6px; 
+            background: #007bff; 
+            color: white; 
+            border-radius: 3px; 
+            font-size: 10px; 
+            margin-left: 5px; 
         }
     </style>
 </head>
 <body>
     <div class="login-container">
         <div class="login-header">
-            <h1>SSO 统一登录</h1>
-            <p>请使用您的账号密码登录</p>
+            <h1>SSO统一登录</h1>
+            <p>企业级单点登录系统</p>
         </div>
-        
+
+        <div class="role-selector">
+            <label>选择用户类型：</label>
+            <div class="role-tabs">
+                <button type="button" class="role-tab active" data-role="PERSONAL_USER">个人用户</button>
+                <button type="button" class="role-tab" data-role="ENTERPRISE_USER">企业用户</button>
+                <button type="button" class="role-tab" data-role="AIRLINE_USER">航司用户</button>
+                <button type="button" class="role-tab" data-role="ADMIN">管理员</button>
+            </div>
+        </div>
+
         <form id="loginForm">
+            <input type="hidden" name="redirect" id="redirectInput" value="">
+            <input type="hidden" name="clientId" id="clientIdInput" value="">
+            <input type="hidden" id="selectedRole" name="expectedRole" value="PERSONAL_USER">
+
             <div class="form-group">
-                <label for="username">用户名</label>
+                <label for="username">用户名/手机号/邮箱</label>
                 <input type="text" id="username" name="username" required placeholder="请输入用户名">
             </div>
-            
+
             <div class="form-group">
                 <label for="password">密码</label>
                 <input type="password" id="password" name="password" required placeholder="请输入密码">
             </div>
-            
+
             <button type="submit" class="login-btn" id="loginBtn">登录</button>
-            
-            <div class="error-message" id="errorMessage"></div>
-            <div class="success-message" id="successMessage"></div>
+
+            <div class="message error-msg" id="errorMsg"></div>
+            <div class="message success-msg" id="successMsg"></div>
         </form>
-        
+
         <div class="demo-accounts">
             <h4>测试账号：</h4>
-            <p>用户名: admin | 密码: 123456</p>
-            <p>用户名: user | 密码: 123456</p>
+            <div class="account-item" onclick="fillAccount('admin', '123456')">管理员: admin / 123456 <span class="role-badge">ADMIN</span></div>
+            <div class="account-item" onclick="fillAccount('airline_user', '123456')">航司用户: airline_user / 123456 <span class="role-badge">AIRLINE</span></div>
+            <div class="account-item" onclick="fillAccount('enterprise_user', '123456')">企业用户: enterprise_user / 123456 <span class="role-badge">ENTERPRISE</span></div>
+            <div class="account-item" onclick="fillAccount('personal_user', '123456')">个人用户: personal_user / 123456 <span class="role-badge">PERSONAL</span></div>
         </div>
     </div>
 
     <script>
-        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+        // 获取URL参数
+        function getUrlParameter(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        // 设置隐藏字段的值
+        function setHiddenFields() {
+            const redirect = getUrlParameter('redirect');
+            const clientId = getUrlParameter('clientId');
+            
+            if (redirect) {
+                document.getElementById('redirectInput').value = redirect;
+            }
+            if (clientId) {
+                document.getElementById('clientIdInput').value = clientId;
+            }
+        }
+
+        // 角色选择功能
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('页面加载完成，初始化角色选择功能');
+            
+            // 设置隐藏字段
+            setHiddenFields();
+            
+            const roleTabs = document.querySelectorAll('.role-tab');
+            const selectedRoleInput = document.getElementById('selectedRole');
+            
+            roleTabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    console.log('点击角色标签:', this.dataset.role);
+                    
+                    // 移除所有active类
+                    roleTabs.forEach(t => t.classList.remove('active'));
+                    
+                    // 添加active类到当前点击的tab
+                    this.classList.add('active');
+                    
+                    // 更新隐藏字段的值
+                    selectedRoleInput.value = this.dataset.role;
+                    
+                    console.log('选择角色:', this.dataset.role);
+                });
+            });
+        });
+
+        // 快速填充账号
+        function fillAccount(username, password) {
+            console.log('填充账号:', username, password);
+            
+            document.getElementById('username').value = username;
+            document.getElementById('password').value = password;
+            
+            // 根据用户名自动选择对应角色
+            let expectedRole = 'PERSONAL_USER';
+            if (username === 'admin') {
+                expectedRole = 'ADMIN';
+            } else if (username === 'airline_user') {
+                expectedRole = 'AIRLINE_USER';
+            } else if (username === 'enterprise_user') {
+                expectedRole = 'ENTERPRISE_USER';
+            } else if (username === 'personal_user') {
+                expectedRole = 'PERSONAL_USER';
+            }
+            
+            // 更新角色选择
+            document.getElementById('selectedRole').value = expectedRole;
+            
+            // 更新UI显示
+            document.querySelectorAll('.role-tab').forEach(tab => {
+                tab.classList.remove('active');
+                if (tab.dataset.role === expectedRole) {
+                    tab.classList.add('active');
+                }
+            });
+            
+            console.log('自动选择角色:', expectedRole);
+        }
+
+        // 登录表单提交
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
+            // 获取当前选择的角色
+            const selectedRole = document.getElementById('selectedRole').value;
+            console.log('提交登录，选择角色:', selectedRole);
+            
+            const formData = new FormData(this);
             const loginBtn = document.getElementById('loginBtn');
-            const errorMessage = document.getElementById('errorMessage');
-            const successMessage = document.getElementById('successMessage');
-            
-            // 隐藏之前的消息
-            errorMessage.style.display = 'none';
-            successMessage.style.display = 'none';
-            
+            const errorMsg = document.getElementById('errorMsg');
+            const successMsg = document.getElementById('successMsg');
+
+            // 隐藏消息
+            errorMsg.style.display = 'none';
+            successMsg.style.display = 'none';
+
             // 禁用按钮
             loginBtn.disabled = true;
             loginBtn.textContent = '登录中...';
-            
-            try {
-                const response = await fetch('/sso/doLogin', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: `name=${encodeURIComponent(username)}&pwd=${encodeURIComponent(password)}`
-                });
+
+            fetch('/sso/doLogin', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('登录响应:', data);
                 
-                const result = await response.json();
-                
-                if (result.code === 200) {
-                    successMessage.textContent = '登录成功，正在跳转...';
-                    successMessage.style.display = 'block';
+                if (data.code === 200) {
+                    successMsg.textContent = '登录成功，正在跳转...';
+                    successMsg.style.display = 'block';
                     
-                    // 延迟一下再刷新页面，让用户看到成功消息
                     setTimeout(() => {
-                        window.location.reload();
+                        if (data.data && data.data.redirectUrl) {
+                            console.log('跳转到:', data.data.redirectUrl);
+                            window.location.href = data.data.redirectUrl;
+                        } else {
+                            console.log('跳转到默认地址');
+                            const redirect = getUrlParameter('redirect') || '';
+                            const clientId = getUrlParameter('clientId') || '';
+                            window.location.href = '/sso/auth?redirect=' + encodeURIComponent(redirect) + '&clientId=' + encodeURIComponent(clientId);
+                        }
                     }, 1000);
                 } else {
-                    errorMessage.textContent = result.msg || '登录失败，请检查用户名和密码';
-                    errorMessage.style.display = 'block';
+                    errorMsg.textContent = data.message || '登录失败，请检查用户名和密码';
+                    errorMsg.style.display = 'block';
                 }
-            } catch (error) {
-                errorMessage.textContent = '网络错误，请稍后重试';
-                errorMessage.style.display = 'block';
-            } finally {
-                // 恢复按钮状态
+            })
+            .catch(error => {
+                console.error('登录错误:', error);
+                errorMsg.textContent = '网络错误，请稍后重试';
+                errorMsg.style.display = 'block';
+            })
+            .finally(() => {
                 loginBtn.disabled = false;
                 loginBtn.textContent = '登录';
-            }
-        });
-        
-        // 快速填充测试账号
-        document.addEventListener('keydown', function(e) {
-            if (e.ctrlKey && e.key === '1') {
-                document.getElementById('username').value = 'admin';
-                document.getElementById('password').value = '123456';
-                e.preventDefault();
-            }
+            });
         });
     </script>
 </body>

@@ -9,13 +9,38 @@ export const useAuthStore = defineStore('auth', () => {
   const userInfo = ref(null)
   const permissions = ref([])
   const roles = ref([])
+  const primaryRole = ref('')
+  const dashboardPath = ref('/dashboard/personal')
+  const userMenus = ref([])
+  const roleFeatures = ref({})
 
   // 计算属性
   const isLoggedIn = computed(() => !!token.value)
 
   // 公共函数：获取用户信息 + 权限
   const fetchUserData = async () => {
-    await Promise.all([fetchUserInfo(), fetchPermissions()])
+    try {
+      // 先获取用户基本信息
+      await fetchUserInfo()
+      
+      // 然后获取角色和权限信息
+      await Promise.all([
+        fetchPermissions(),
+        fetchRoleInfo(),
+        fetchUserMenus(),
+        fetchRoleFeatures()
+      ])
+      
+      console.log('用户数据获取完成:', {
+        userInfo: userInfo.value,
+        roles: roles.value,
+        primaryRole: primaryRole.value,
+        dashboardPath: dashboardPath.value
+      })
+    } catch (error) {
+      console.error('获取用户数据失败:', error)
+      throw error
+    }
   }
 
   // 初始化认证状态
@@ -41,6 +66,7 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await request.get('/sso/userinfo')
       if (response.data.code === 200) {
         userInfo.value = response.data.data
+        console.log('获取用户信息成功:', response.data.data)
       } else {
         throw new Error(response.data.message)
       }
@@ -53,17 +79,63 @@ export const useAuthStore = defineStore('auth', () => {
   // 获取用户权限
   const fetchPermissions = async () => {
     try {
-      const response = await request.get('/sso/user-permissions')
+      const response = await request.get('/api/role/permissions')
       if (response.data.code === 200) {
-        const data = response.data.data
-        permissions.value = data.permissions || []
-        roles.value = data.roles || []
-      } else {
-        throw new Error(response.data.message)
+        permissions.value = response.data.data || []
+        console.log('用户权限:', permissions.value)
       }
     } catch (error) {
       console.error('获取用户权限失败:', error)
-      throw error
+      permissions.value = []
+    }
+  }
+
+  // 获取角色信息
+  const fetchRoleInfo = async () => {
+    try {
+      const response = await request.get('/api/role/current')
+      if (response.data.code === 200) {
+        const roleInfo = response.data.data
+        roles.value = roleInfo.roles || []
+        primaryRole.value = roleInfo.primaryRole || ''
+        dashboardPath.value = roleInfo.dashboardPath || '/dashboard/personal'
+        console.log('角色信息:', roleInfo)
+        return roleInfo
+      }
+    } catch (error) {
+      console.error('获取角色信息失败:', error)
+      roles.value = []
+      primaryRole.value = ''
+      dashboardPath.value = '/dashboard/personal'
+    }
+    return null
+  }
+
+  // 获取用户菜单
+  const fetchUserMenus = async () => {
+    try {
+      const response = await request.get('/api/role/menus')
+      if (response.data.code === 200) {
+        userMenus.value = response.data.data || []
+        console.log('用户菜单:', userMenus.value)
+      }
+    } catch (error) {
+      console.error('获取用户菜单失败:', error)
+      userMenus.value = []
+    }
+  }
+
+  // 获取角色功能配置
+  const fetchRoleFeatures = async () => {
+    try {
+      const response = await request.get('/api/role/features')
+      if (response.data.code === 200) {
+        roleFeatures.value = response.data.data || {}
+        console.log('角色功能配置:', roleFeatures.value)
+      }
+    } catch (error) {
+      console.error('获取角色功能配置失败:', error)
+      roleFeatures.value = {}
     }
   }
 
@@ -134,13 +206,78 @@ export const useAuthStore = defineStore('auth', () => {
     userInfo.value = null
     permissions.value = []
     roles.value = []
+    primaryRole.value = ''
+    dashboardPath.value = '/dashboard/personal'
+    userMenus.value = []
+    roleFeatures.value = {}
     Cookies.remove('satoken')
     // request 实例会通过拦截器自动处理 token，无需手动设置
   }
 
-  // 检查权限
-  const checkPermission = (permission) => permissions.value.includes(permission)
-  const checkRole = (role) => roles.value.includes(role)
+  // 检查权限（异步版本，发送请求到后端）
+  const checkPermission = async (permission) => {
+    try {
+      const response = await request.post('/api/role/check-permission', { permission })
+      return response.data.code === 200 && response.data.data === true
+    } catch (error) {
+      console.error('权限检查失败:', error)
+      return false
+    }
+  }
+
+  // 检查角色（异步版本，发送请求到后端）
+  const checkRole = async (roleCode) => {
+    try {
+      const response = await request.post('/api/role/check-role', { roleCode })
+      return response.data.code === 200 && response.data.data === true
+    } catch (error) {
+      console.error('角色检查失败:', error)
+      return false
+    }
+  }
+
+  // 本地权限检查（不发送请求）
+  const hasPermission = (permission) => {
+    return permissions.value.includes(permission)
+  }
+
+  // 本地角色检查（不发送请求）
+  const hasRole = (roleCode) => {
+    return roles.value.includes(roleCode)
+  }
+
+  // 检查是否为管理员
+  const isAdmin = () => {
+    return primaryRole.value === 'ADMIN'
+  }
+
+  // 检查是否为航司用户
+  const isAirlineUser = () => {
+    return primaryRole.value === 'AIRLINE_USER'
+  }
+
+  // 检查是否为企业用户
+  const isEnterpriseUser = () => {
+    return primaryRole.value === 'ENTERPRISE_USER'
+  }
+
+  // 检查是否为个人用户
+  const isPersonalUser = () => {
+    return primaryRole.value === 'PERSONAL_USER'
+  }
+
+  // 批量检查权限
+  const batchCheckPermissions = async (permissionList) => {
+    try {
+      const response = await request.post('/api/role/batch-check-permissions', {
+        permissions: permissionList
+      })
+      return response.data.code === 200 ? response.data.data : {}
+    } catch (error) {
+      console.error('批量权限检查失败:', error)
+      return {}
+    }
+  }
 
   // 验证 Token 有效性
   const checkTokenValidity = async () => {
@@ -169,23 +306,46 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   return {
+    // 状态
     token,
     userInfo,
     permissions,
     roles,
+    primaryRole,
+    dashboardPath,
+    userMenus,
+    roleFeatures,
     isLoggedIn,
+
+    // 初始化和数据获取
     initAuth,
     fetchUserInfo,
     fetchPermissions,
+    fetchRoleInfo,
+    fetchUserMenus,
+    fetchRoleFeatures,
     fetchUserData,
+
+    // 认证相关
     redirectToLogin,
     handleSsoCallback,
     refreshToken,
     logout,
     clearAuth,
+    setToken,
+    checkTokenValidity,
+
+    // 权限检查
     checkPermission,
     checkRole,
-    checkTokenValidity,
-    setToken
+    hasPermission,
+    hasRole,
+    batchCheckPermissions,
+
+    // 角色检查
+    isAdmin,
+    isAirlineUser,
+    isEnterpriseUser,
+    isPersonalUser
   }
 })

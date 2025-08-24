@@ -160,17 +160,37 @@ const handleSsoCallback = async () => {
     
     addDebugStep(`准备跳转到: ${returnUrl}`)
     
-    // 倒计时跳转
-    const timer = setInterval(() => {
-      countdown.value--
-      if (countdown.value <= 0) {
-        clearInterval(timer)
-        // 跳转到目标页面
-        if (returnUrl.startsWith('http')) {
-          window.location.href = returnUrl
-        } else {
-          router.push(returnUrl)
+    // 直接跳转到用户对应的角色仪表板
+    setTimeout(() => {
+      // 根据用户角色跳转到对应仪表板
+      const userRoles = authStore.userInfo?.roles || []
+      if (userRoles.length > 0) {
+        // 获取主要角色
+        const roleHierarchy = ['ADMIN', 'AIRLINE_USER', 'ENTERPRISE_USER', 'PERSONAL_USER']
+        let primaryRole = 'PERSONAL_USER'
+        
+        for (const role of roleHierarchy) {
+          if (userRoles.includes(role)) {
+            primaryRole = role
+            break
+          }
         }
+        
+        // 角色到仪表板的映射
+        const roleDashboardMap = {
+          'ADMIN': '/dashboard/admin',
+          'PERSONAL_USER': '/dashboard/personal',
+          'ENTERPRISE_USER': '/dashboard/enterprise',
+          'AIRLINE_USER': '/dashboard/airline'
+        }
+        
+        const dashboardPath = roleDashboardMap[primaryRole] || '/dashboard/personal'
+        addDebugStep(`根据角色 ${primaryRole} 跳转到 ${dashboardPath}`)
+        
+        router.push(dashboardPath)
+      } else {
+        // 如果没有角色信息，跳转到默认页面
+        router.push(returnUrl)
       }
     }, 1000)
     

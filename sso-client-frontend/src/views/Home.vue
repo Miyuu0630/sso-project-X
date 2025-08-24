@@ -16,10 +16,10 @@
           >
             <template #extra>
               <el-space>
-                <el-button type="primary" @click="$router.push('/dashboard')">
-                  进入控制台
+                <el-button type="primary" @click="goToDashboard">
+                  进入{{ getRoleName() }}仪表板
                 </el-button>
-                <el-button @click="$router.push('/profile')">
+                <el-button @click="$router.push('/user/profile')">
                   个人信息
                 </el-button>
               </el-space>
@@ -30,13 +30,16 @@
           
           <div class="user-stats">
             <el-row :gutter="20">
-              <el-col :span="8">
-                <el-statistic title="用户类型" :value="userInfo?.userTypeDesc || '未知'" />
+              <el-col :span="6">
+                <el-statistic title="用户类型" :value="getRoleName()" />
               </el-col>
-              <el-col :span="8">
-                <el-statistic title="账号状态" :value="userInfo?.statusDesc || '未知'" />
+              <el-col :span="6">
+                <el-statistic title="主要角色" :value="authStore.primaryRole || '未设置'" />
               </el-col>
-              <el-col :span="8">
+              <el-col :span="6">
+                <el-statistic title="账号状态" :value="userInfo?.statusDesc || '正常'" />
+              </el-col>
+              <el-col :span="6">
                 <el-statistic title="权限数量" :value="permissions.length" />
               </el-col>
             </el-row>
@@ -104,13 +107,45 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { Lock, User, Key } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 
 const authStore = useAuthStore()
+const $router = useRouter()
 
 const userInfo = computed(() => authStore.userInfo)
 const permissions = computed(() => authStore.permissions)
+
+// 角色名称映射
+const roleNameMap = {
+  'ADMIN': '管理员',
+  'AIRLINE_USER': '航司用户',
+  'ENTERPRISE_USER': '企业用户',
+  'PERSONAL_USER': '个人用户'
+}
+
+// 获取角色名称
+const getRoleName = () => {
+  return roleNameMap[authStore.primaryRole] || '未知角色'
+}
+
+// 获取角色标签类型
+const getRoleTagType = () => {
+  const typeMap = {
+    'ADMIN': 'danger',
+    'AIRLINE_USER': 'warning',
+    'ENTERPRISE_USER': 'success',
+    'PERSONAL_USER': 'info'
+  }
+  return typeMap[authStore.primaryRole] || 'info'
+}
+
+// 跳转到对应的仪表板
+const goToDashboard = () => {
+  const dashboardPath = authStore.dashboardPath || '/dashboard'
+  $router.push(dashboardPath)
+}
 
 const login = () => {
   authStore.redirectToLogin()

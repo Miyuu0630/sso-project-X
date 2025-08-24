@@ -98,6 +98,11 @@ public class LoginRequest {
      */
     private String clientId;
 
+    /**
+     * 期望的用户角色（SSO登录时使用）
+     */
+    private String expectedRole;
+
     // ========================================
     // 业务方法
     // ========================================

@@ -1,392 +1,209 @@
 <template>
   <div class="dashboard-container">
-    <!-- 页面头部 -->
-    <div class="dashboard-header">
-      <h1 class="page-title">
-        <el-icon><Odometer /></el-icon>
-        仪表板
-      </h1>
-      <p class="page-subtitle">欢迎使用企业 SSO 业务系统</p>
+    <!-- 加载状态 -->
+    <div v-if="loading" class="loading-container">
+      <el-loading-spinner size="large" />
+      <p>正在加载您的专属仪表板...</p>
     </div>
 
-    <!-- 统计卡片 -->
-    <div class="stats-grid">
-      <el-row :gutter="20">
-        <el-col :span="6">
-          <el-card class="stats-card">
-            <div class="stats-content">
-              <div class="stats-icon primary">
-                <el-icon><User /></el-icon>
-              </div>
-              <div class="stats-info">
-                <h3>{{ userStats.total }}</h3>
-                <p>总用户数</p>
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-        
-        <el-col :span="6">
-          <el-card class="stats-card">
-            <div class="stats-content">
-              <div class="stats-icon success">
-                <el-icon><UserFilled /></el-icon>
-              </div>
-              <div class="stats-info">
-                <h3>{{ userStats.online }}</h3>
-                <p>在线用户</p>
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-        
-        <el-col :span="6">
-          <el-card class="stats-card">
-            <div class="stats-content">
-              <div class="stats-icon warning">
-                <el-icon><Document /></el-icon>
-              </div>
-              <div class="stats-info">
-                <h3>{{ loginStats.today }}</h3>
-                <p>今日登录</p>
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-        
-        <el-col :span="6">
-          <el-card class="stats-card">
-            <div class="stats-content">
-              <div class="stats-icon danger">
-                <el-icon><Warning /></el-icon>
-              </div>
-              <div class="stats-info">
-                <h3>{{ securityStats.alerts }}</h3>
-                <p>安全告警</p>
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-      </el-row>
-    </div>
-
-    <!-- 图表区域 -->
-    <div class="charts-section">
-      <el-row :gutter="20">
-        <el-col :span="12">
-          <el-card>
-            <template #header>
-              <div class="card-header">
-                <span>登录趋势</span>
-                <el-button type="text">查看详情</el-button>
-              </div>
-            </template>
-            <div class="chart-placeholder">
-              <el-icon size="48" color="#ddd"><TrendCharts /></el-icon>
-              <p>登录趋势图表</p>
-              <el-text type="info">图表功能开发中...</el-text>
-            </div>
-          </el-card>
-        </el-col>
-        
-        <el-col :span="12">
-          <el-card>
-            <template #header>
-              <div class="card-header">
-                <span>用户分布</span>
-                <el-button type="text">查看详情</el-button>
-              </div>
-            </template>
-            <div class="chart-placeholder">
-              <el-icon size="48" color="#ddd"><PieChart /></el-icon>
-              <p>用户分布图表</p>
-              <el-text type="info">图表功能开发中...</el-text>
-            </div>
-          </el-card>
-        </el-col>
-      </el-row>
-    </div>
-
-    <!-- 快速操作 -->
-    <div class="quick-actions">
-      <el-card>
-        <template #header>
-          <div class="card-header">
-            <span>快速操作</span>
-          </div>
+    <!-- 角色识别失败 -->
+    <div v-else-if="!userRole" class="error-container">
+      <el-result
+        icon="warning"
+        title="无法识别用户角色"
+        sub-title="请联系管理员检查您的账号权限设置"
+      >
+        <template #extra>
+          <el-button type="primary" @click="refreshUserInfo">
+            重新获取用户信息
+          </el-button>
+          <el-button @click="logout">
+            重新登录
+          </el-button>
         </template>
-        <div class="actions-grid">
-          <el-button type="primary" :icon="Plus" @click="handleAction('addUser')">
-            添加用户
-          </el-button>
-          <el-button type="success" :icon="View" @click="handleAction('viewLogs')">
-            查看日志
-          </el-button>
-          <el-button type="warning" :icon="Setting" @click="handleAction('systemConfig')">
-            系统配置
-          </el-button>
-          <el-button type="info" :icon="Download" @click="handleAction('exportData')">
-            导出数据
-          </el-button>
-        </div>
-      </el-card>
+      </el-result>
     </div>
 
-    <!-- 最近活动 -->
-    <div class="recent-activities">
-      <el-card>
-        <template #header>
-          <div class="card-header">
-            <span>最近活动</span>
-            <el-button type="text">查看全部</el-button>
-          </div>
-        </template>
-        <el-timeline>
-          <el-timeline-item
-            v-for="activity in recentActivities"
-            :key="activity.id"
-            :timestamp="activity.time"
-            :type="activity.type"
-          >
-            {{ activity.description }}
-          </el-timeline-item>
-        </el-timeline>
-      </el-card>
-    </div>
+    <!-- 动态加载对应角色的仪表板组件 -->
+    <component
+      v-else
+      :is="dashboardComponent"
+      :key="userRole"
+      @role-changed="handleRoleChanged"
+    />
   </div>
+
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage } from 'element-plus'
-import {
-  Odometer,
-  User,
-  UserFilled,
-  Document,
-  Warning,
-  TrendCharts,
-  PieChart,
-  Plus,
-  View,
-  Setting,
-  Download
-} from '@element-plus/icons-vue'
 
-// 状态管理
+// 导入各角色仪表板组件
+import AdminDashboard from './dashboard/AdminDashboard.vue'
+import PersonalDashboard from './dashboard/PersonalDashboard.vue'
+import EnterpriseDashboard from './dashboard/EnterpriseDashboard.vue'
+import AirlineDashboard from './dashboard/AirlineDashboard.vue'
+
+const router = useRouter()
 const authStore = useAuthStore()
 
-// 统计数据
-const userStats = ref({
-  total: 1248,
-  online: 156
-})
+// 响应式数据
+const loading = ref(true)
+const userRole = ref('')
 
-const loginStats = ref({
-  today: 89
-})
-
-const securityStats = ref({
-  alerts: 3
-})
-
-// 最近活动
-const recentActivities = ref([
-  {
-    id: 1,
-    description: '用户 admin 登录系统',
-    time: '2025-01-19 14:30',
-    type: 'primary'
-  },
-  {
-    id: 2,
-    description: '新用户 john_doe 注册成功',
-    time: '2025-01-19 14:15',
-    type: 'success'
-  },
-  {
-    id: 3,
-    description: '检测到异常登录尝试',
-    time: '2025-01-19 14:00',
-    type: 'warning'
-  },
-  {
-    id: 4,
-    description: '系统配置已更新',
-    time: '2025-01-19 13:45',
-    type: 'info'
-  }
-])
-
-// 方法
-const handleAction = (action) => {
-  switch (action) {
-    case 'addUser':
-      ElMessage.info('跳转到用户管理页面...')
-      break
-    case 'viewLogs':
-      ElMessage.info('跳转到日志查看页面...')
-      break
-    case 'systemConfig':
-      ElMessage.info('跳转到系统配置页面...')
-      break
-    case 'exportData':
-      ElMessage.info('开始导出数据...')
-      break
-    default:
-      ElMessage.info('功能开发中...')
-  }
+// 角色到组件的映射
+const dashboardComponents = {
+  'ADMIN': AdminDashboard,
+  'PERSONAL_USER': PersonalDashboard,
+  'ENTERPRISE_USER': EnterpriseDashboard,
+  'AIRLINE_USER': AirlineDashboard
 }
 
-// 加载数据
-const loadDashboardData = async () => {
+// 角色到路径的映射
+const roleDashboardMap = {
+  'ADMIN': '/dashboard/admin',
+  'PERSONAL_USER': '/dashboard/personal',
+  'ENTERPRISE_USER': '/dashboard/enterprise',
+  'AIRLINE_USER': '/dashboard/airline'
+}
+
+// 计算属性
+const dashboardComponent = computed(() => {
+  return dashboardComponents[userRole.value] || PersonalDashboard
+})
+
+// 获取用户主要角色
+const getUserPrimaryRole = (userRoles) => {
+  if (!userRoles || userRoles.length === 0) {
+    return null
+  }
+
+  // 角色优先级：管理员 > 航司用户 > 企业用户 > 个人用户
+  const roleHierarchy = ['ADMIN', 'AIRLINE_USER', 'ENTERPRISE_USER', 'PERSONAL_USER']
+
+  for (const role of roleHierarchy) {
+    if (userRoles.includes(role)) {
+      return role
+    }
+  }
+
+  // 如果没有匹配到预定义角色，返回第一个角色
+  return userRoles[0]
+}
+
+// 初始化用户角色
+const initializeUserRole = async () => {
   try {
-    // 这里可以调用 API 获取真实数据
-    console.log('加载仪表板数据...')
+    loading.value = true
+
+    // 确保用户信息已加载
+    if (!authStore.userInfo) {
+      await authStore.fetchUserData()
+    }
+
+    const userRoles = authStore.userInfo?.roles || []
+    const primaryRole = getUserPrimaryRole(userRoles)
+
+    if (primaryRole) {
+      userRole.value = primaryRole
+
+      // 如果当前路径是通用仪表板路径，重定向到角色专用路径
+      if (router.currentRoute.value.path === '/dashboard') {
+        const targetPath = roleDashboardMap[primaryRole]
+        if (targetPath) {
+          await router.replace(targetPath)
+        }
+      }
+    } else {
+      console.warn('用户没有有效的角色')
+      userRole.value = null
+    }
   } catch (error) {
-    console.error('加载仪表板数据失败:', error)
-    ElMessage.error('加载数据失败')
+    console.error('初始化用户角色失败:', error)
+    ElMessage.error('加载用户信息失败')
+    userRole.value = null
+  } finally {
+    loading.value = false
   }
 }
+
+// 刷新用户信息
+const refreshUserInfo = async () => {
+  try {
+    await authStore.fetchUserData()
+    await initializeUserRole()
+    ElMessage.success('用户信息已更新')
+  } catch (error) {
+    ElMessage.error('刷新用户信息失败')
+  }
+}
+
+// 登出
+const logout = async () => {
+  await authStore.logout()
+}
+
+// 处理角色变更
+const handleRoleChanged = async () => {
+  await initializeUserRole()
+}
+
+// 监听用户信息变化
+watch(
+  () => authStore.userInfo,
+  (newUserInfo) => {
+    if (newUserInfo) {
+      const userRoles = newUserInfo.roles || []
+      const primaryRole = getUserPrimaryRole(userRoles)
+      if (primaryRole !== userRole.value) {
+        userRole.value = primaryRole
+      }
+    }
+  },
+  { deep: true }
+)
 
 // 生命周期
 onMounted(() => {
-  loadDashboardData()
+  initializeUserRole()
 })
 </script>
 
 <style scoped>
 .dashboard-container {
-  padding: 24px;
-  background-color: #f5f5f5;
   min-height: calc(100vh - 60px);
+  background-color: #f5f7fa;
 }
 
-.dashboard-header {
-  margin-bottom: 24px;
-}
-
-.page-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 24px;
-  font-weight: 600;
-  color: #2c3e50;
-  margin: 0 0 8px 0;
-}
-
-.page-subtitle {
-  color: #7f8c8d;
-  margin: 0;
-}
-
-.stats-grid {
-  margin-bottom: 24px;
-}
-
-.stats-card {
-  height: 120px;
-}
-
-.stats-content {
-  display: flex;
-  align-items: center;
-  height: 100%;
-}
-
-.stats-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 16px;
-  font-size: 24px;
-  color: white;
-}
-
-.stats-icon.primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.stats-icon.success {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-}
-
-.stats-icon.warning {
-  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-}
-
-.stats-icon.danger {
-  background: linear-gradient(135deg, #ff6b6b 0%, #ffa726 100%);
-}
-
-.stats-info h3 {
-  font-size: 28px;
-  font-weight: 600;
-  margin: 0 0 4px 0;
-  color: #2c3e50;
-}
-
-.stats-info p {
-  color: #7f8c8d;
-  margin: 0;
-  font-size: 14px;
-}
-
-.charts-section {
-  margin-bottom: 24px;
-}
-
-.chart-placeholder {
-  height: 300px;
+.loading-container {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #bbb;
+  height: calc(100vh - 60px);
+  gap: 20px;
 }
 
-.chart-placeholder p {
-  margin: 16px 0 8px 0;
+.loading-container p {
+  color: #909399;
   font-size: 16px;
+  margin: 0;
 }
 
-.quick-actions {
-  margin-bottom: 24px;
-}
-
-.actions-grid {
+.error-container {
   display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.recent-activities {
-  margin-bottom: 24px;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: center;
+  height: calc(100vh - 60px);
+  padding: 20px;
 }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .dashboard-container {
-    padding: 16px;
-  }
-  
-  .actions-grid {
-    flex-direction: column;
-  }
-  
-  .actions-grid .el-button {
-    width: 100%;
-  }
+/* 确保动态组件占满容器 */
+.dashboard-container > * {
+  width: 100%;
+  height: 100%;
 }
 </style>

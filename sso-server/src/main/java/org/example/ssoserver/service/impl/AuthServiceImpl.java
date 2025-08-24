@@ -85,6 +85,16 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException(ResultCode.LOGIN_FAIL_TOO_MANY, securityCheck.getReason());
         }
         
+        // 验证用户角色（如果指定了期望角色）
+        if (request.getExpectedRole() != null && !request.getExpectedRole().isEmpty()) {
+            List<String> userRoles = getUserRoles(user.getId());
+            if (!userRoles.contains(request.getExpectedRole())) {
+                throw new BusinessException(ResultCode.LOGIN_FAIL_TOO_MANY, 
+                    "用户角色不匹配，期望角色：" + request.getExpectedRole() + 
+                    "，实际角色：" + String.join(",", userRoles));
+            }
+        }
+        
         // 执行登录
         return performLogin(user, request, securityCheck.getWarnings());
     }
@@ -371,7 +381,7 @@ public class AuthServiceImpl implements AuthService {
     private LoginResponse performLogin(SysUser user, LoginRequest request, List<String> warnings) {
         try {
             // 生成访问令牌
-            String accessToken = generateAccessToken(user, request.getRememberMe());
+            String accessToken = generateAccessToken(user, request.getRememberMe() != null ? request.getRememberMe() : false);
 
             // 更新用户登录信息
             userService.updateLoginInfo(user.getId(), request.getClientIp());
