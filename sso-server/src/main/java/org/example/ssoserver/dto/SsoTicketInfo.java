@@ -35,3 +35,4 @@ public class SsoTicketInfo {
      */
     private LocalDateTime createTime;
 }
+

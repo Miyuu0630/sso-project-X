@@ -133,7 +133,7 @@
 
           <div class="action-card" @click="navigateTo('/monitor/server')">
             <div class="action-icon">
-              <el-icon size="24"><Server /></el-icon>
+              <el-icon size="24"><Cpu /></el-icon>
             </div>
             <div class="action-content">
               <h4>服务监控</h4>
@@ -245,8 +245,8 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { 
-  User, Monitor, Setting, Menu, Server, Document,
+import {
+  User, Monitor, Setting, Menu, Cpu, Document,
   TrendCharts, ArrowUp, InfoFilled, Check, Clock,
   CircleCloseFilled, WarningFilled
 } from '@element-plus/icons-vue'

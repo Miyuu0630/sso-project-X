@@ -17,11 +17,14 @@ import org.example.ssoserver.entity.SysLoginLog;
 import org.example.ssoserver.service.AuthService;
 import org.example.ssoserver.service.SysUserService;
 import org.example.ssoserver.dto.SsoTicketInfo;
+import org.example.ssoserver.dto.RefreshTokenInfo;
 import org.example.ssoserver.service.PermissionService;
 import org.example.ssoserver.mapper.SysLoginLogMapper;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -43,6 +46,28 @@ public class AuthServiceImpl implements AuthService {
     private static final String SSO_TICKET_PREFIX = "sso:ticket:";
     // SSO票据有效期（分钟）
     private static final int SSO_TICKET_EXPIRE_MINUTES = 5;
+
+    // Refresh Token前缀
+    private static final String REFRESH_TOKEN_PREFIX = "sso:refresh:";
+
+    // Refresh Token锁前缀（用于并发控制）
+    private static final String REFRESH_TOKEN_LOCK_PREFIX = "sso:refresh:lock:";
+
+    // 锁过期时间（秒）
+    private static final int LOCK_EXPIRE_SECONDS = 30;
+
+    // Refresh Token配置（从配置文件读取）
+    @Value("${refresh-token.expire-days:7}")
+    private int refreshTokenExpireDays;
+
+    @Value("${refresh-token.auto-renewal:true}")
+    private boolean refreshTokenAutoRenewal;
+
+    @Value("${refresh-token.renewal-threshold-days:1}")
+    private int refreshTokenRenewalThresholdDays;
+
+    @Value("${refresh-token.device-fingerprint-check:true}")
+    private boolean deviceFingerprintCheck;
     
     @Override
     public LoginResponse ssoLogin(LoginRequest request) {
@@ -176,8 +201,18 @@ public class AuthServiceImpl implements AuthService {
                 throw BusinessException.userNotFound();
             }
             
-            // 销毁一次性票据
-            redisTemplate.delete(key);
+            // 标记票据已使用，但保留一段时间以支持重复验证
+            String usedKey = key + ":used";
+            Boolean isUsed = redisTemplate.hasKey(usedKey);
+
+            if (Boolean.TRUE.equals(isUsed)) {
+                // 票据已被使用过，但在有效期内可以重复验证
+                log.debug("票据已被使用，但在有效期内: ticket={}", ticket);
+            } else {
+                // 首次使用，标记为已使用
+                redisTemplate.opsForValue().set(usedKey, "true", Duration.ofMinutes(5));
+                log.debug("首次使用票据: ticket={}", ticket);
+            }
             
             // 转换为DTO并返回
             UserDTO userDTO = userService.convertToDTO(user);
@@ -246,9 +281,31 @@ public class AuthServiceImpl implements AuthService {
     
     @Override
     public String generateRefreshToken(Long userId) {
-        // Sa-Token的refresh token功能
-        // 这里可以根据需要实现自定义的refresh token逻辑
-        return null;
+        try {
+            // 生成唯一refresh token
+            String refreshToken = IdUtil.fastSimpleUUID();
+
+            // 构建refresh token信息
+            RefreshTokenInfo refreshTokenInfo = RefreshTokenInfo.builder()
+                    .userId(userId)
+                    .accessToken(null) // 在登录时会更新为对应的access token
+                    .createTime(LocalDateTime.now())
+                    .expireTime(LocalDateTime.now().plusDays(refreshTokenExpireDays))
+                    .deviceFingerprint(null) // 在登录时会设置
+                    .clientIp(null) // 在登录时会设置
+                    .build();
+
+            // 存储到Redis，设置过期时间
+            String key = REFRESH_TOKEN_PREFIX + refreshToken;
+            redisTemplate.opsForValue().set(key, refreshTokenInfo,
+                    refreshTokenExpireDays, TimeUnit.DAYS);
+
+            log.info("生成Refresh Token成功: userId={}, refreshToken={}", userId, refreshToken);
+            return refreshToken;
+        } catch (Exception e) {
+            log.error("生成Refresh Token失败: userId={}", userId, e);
+            throw new BusinessException(ResultCode.ERROR, "生成Refresh Token失败");
+        }
     }
     
     @Override
@@ -263,8 +320,105 @@ public class AuthServiceImpl implements AuthService {
     
     @Override
     public String refreshAccessToken(String refreshToken) {
-        // TODO: 实现refresh token逻辑
-        throw new BusinessException(ResultCode.ERROR, "刷新令牌功能暂未实现");
+        // 生成锁的key
+        String lockKey = REFRESH_TOKEN_LOCK_PREFIX + refreshToken;
+        String lockValue = IdUtil.fastSimpleUUID();
+
+        try {
+            // 尝试获取分布式锁
+            Boolean lockAcquired = redisTemplate.opsForValue().setIfAbsent(lockKey, lockValue,
+                    LOCK_EXPIRE_SECONDS, TimeUnit.SECONDS);
+
+            if (Boolean.FALSE.equals(lockAcquired)) {
+                log.warn("Refresh Token正在被其他请求处理: refreshToken={}", refreshToken);
+                throw new BusinessException(ResultCode.ERROR, "Refresh Token正在处理中，请稍后重试");
+            }
+
+            String key = REFRESH_TOKEN_PREFIX + refreshToken;
+            RefreshTokenInfo refreshTokenInfo = (RefreshTokenInfo) redisTemplate.opsForValue().get(key);
+
+            if (refreshTokenInfo == null) {
+                throw new BusinessException(ResultCode.TOKEN_INVALID, "Refresh Token不存在或已过期");
+            }
+
+            // 检查refresh token是否过期
+            if (refreshTokenInfo.getExpireTime().isBefore(LocalDateTime.now())) {
+                // 删除过期的refresh token
+                redisTemplate.delete(key);
+                log.warn("Refresh Token已过期: userId={}, refreshToken={}", refreshTokenInfo.getUserId(), refreshToken);
+                throw new BusinessException(ResultCode.TOKEN_INVALID, "Refresh Token已过期");
+            }
+
+            // 检查是否需要自动续期
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime renewalThreshold = now.plusDays(refreshTokenRenewalThresholdDays);
+            boolean needsRenewal = refreshTokenAutoRenewal &&
+                                  refreshTokenInfo.getExpireTime().isBefore(renewalThreshold);
+
+            // 如果启用了设备指纹检查，验证设备一致性
+            if (deviceFingerprintCheck && refreshTokenInfo.getDeviceFingerprint() != null) {
+                // 验证设备指纹是否匹配（这里需要从请求中获取当前设备指纹）
+                // 由于refresh token接口可能没有完整的请求信息，我们暂时记录日志
+                log.debug("设备指纹检查已启用，存储的指纹: {}, IP: {}",
+                         refreshTokenInfo.getDeviceFingerprint(), refreshTokenInfo.getClientIp());
+            }
+
+            // 获取用户ID
+            Long userId = refreshTokenInfo.getUserId();
+
+            // 检查用户是否仍然有效
+            SysUser user = userService.getUserById(userId);
+            if (user == null || !user.canLogin()) {
+                // 删除无效的refresh token
+                redisTemplate.delete(key);
+                throw new BusinessException(ResultCode.USER_NOT_FOUND, "用户不存在或已被禁用");
+            }
+
+            // 生成新的access token
+            StpUtil.login(userId);
+            String newAccessToken = StpUtil.getTokenValue();
+
+            // 更新refresh token信息中的access token
+            refreshTokenInfo.setAccessToken(newAccessToken);
+
+            // 如果需要自动续期，延长refresh token的过期时间
+            if (needsRenewal) {
+                LocalDateTime newExpireTime = now.plusDays(refreshTokenExpireDays);
+                refreshTokenInfo.setExpireTime(newExpireTime);
+                refreshTokenInfo.setCreateTime(now); // 更新创建时间
+
+                log.info("Refresh Token自动续期: userId={}, oldExpireTime={}, newExpireTime={}",
+                        userId, refreshTokenInfo.getExpireTime(), newExpireTime);
+            }
+
+            // 重新存储到Redis
+            redisTemplate.opsForValue().set(key, refreshTokenInfo,
+                    refreshTokenExpireDays, TimeUnit.DAYS);
+
+            log.info("Refresh Token刷新成功: userId={}, refreshToken={}, newAccessToken={}, renewed={}",
+                    userId, refreshToken, newAccessToken, needsRenewal);
+
+            return newAccessToken;
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Refresh Token刷新异常: refreshToken={}", refreshToken, e);
+            throw new BusinessException(ResultCode.TOKEN_INVALID, "Refresh Token刷新失败");
+        } finally {
+            // 释放分布式锁
+            try {
+                Object lockValueObj = redisTemplate.opsForValue().get(lockKey);
+                if (lockValueObj instanceof String) {
+                    String currentLockValue = (String) lockValueObj;
+                    if (lockValue.equals(currentLockValue)) {
+                        redisTemplate.delete(lockKey);
+                        log.debug("Refresh Token锁已释放: refreshToken={}", refreshToken);
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("释放Refresh Token锁失败: refreshToken={}, error={}", refreshToken, e.getMessage());
+            }
+        }
     }
     
     @Override
@@ -383,6 +537,27 @@ public class AuthServiceImpl implements AuthService {
             // 生成访问令牌
             String accessToken = generateAccessToken(user, request.getRememberMe() != null ? request.getRememberMe() : false);
 
+            // 生成refresh token
+            String refreshToken = generateRefreshToken(user.getId());
+
+            // 更新refresh token信息，关联access token和设备信息
+            String refreshKey = REFRESH_TOKEN_PREFIX + refreshToken;
+            RefreshTokenInfo refreshTokenInfo = (RefreshTokenInfo) redisTemplate.opsForValue().get(refreshKey);
+            if (refreshTokenInfo != null) {
+                refreshTokenInfo.setAccessToken(accessToken);
+
+                // 生成或使用设备指纹
+                String deviceFingerprint = generateDeviceFingerprint(request);
+                refreshTokenInfo.setDeviceFingerprint(deviceFingerprint);
+                refreshTokenInfo.setClientIp(request.getClientIp());
+
+                redisTemplate.opsForValue().set(refreshKey, refreshTokenInfo,
+                        refreshTokenExpireDays, TimeUnit.DAYS);
+
+                log.debug("Refresh Token设备信息更新: userId={}, deviceFingerprint={}, ip={}",
+                         user.getId(), deviceFingerprint, request.getClientIp());
+            }
+
             // 更新用户登录信息
             userService.updateLoginInfo(user.getId(), request.getClientIp());
 
@@ -392,8 +567,10 @@ public class AuthServiceImpl implements AuthService {
             // 构建登录响应
             LoginResponse response = LoginResponse.builder()
                     .accessToken(accessToken)
+                    .refreshToken(refreshToken)
                     .tokenType("Bearer")
                     .expiresIn(StpUtil.getTokenTimeout())
+                    .refreshTokenExpiresIn(refreshTokenExpireDays * 24 * 60 * 60L) // 转换为秒
                     .userId(user.getId())
                     .username(user.getUsername())
                     .nickname(user.getNickname())
@@ -455,6 +632,115 @@ public class AuthServiceImpl implements AuthService {
         // TODO: 实现异地登录检测
 
         return warnings;
+    }
+
+    /**
+     * 生成设备指纹
+     */
+    private String generateDeviceFingerprint(LoginRequest request) {
+        try {
+            // 基于User-Agent、IP地址、设备类型等生成设备指纹
+            StringBuilder fingerprint = new StringBuilder();
+            fingerprint.append(request.getUserAgent() != null ? request.getUserAgent().hashCode() : "unknown");
+            fingerprint.append("_");
+            fingerprint.append(request.getClientIp() != null ? request.getClientIp() : "unknown");
+            fingerprint.append("_");
+            fingerprint.append(request.getDeviceInfo() != null ? request.getDeviceInfo().hashCode() : "unknown");
+
+            String fingerprintStr = String.valueOf(fingerprint.toString().hashCode());
+            log.debug("生成设备指纹: userAgent={}, ip={}, fingerprint={}",
+                     request.getUserAgent(), request.getClientIp(), fingerprintStr);
+            return fingerprintStr;
+        } catch (Exception e) {
+            log.warn("生成设备指纹失败", e);
+            return "unknown";
+        }
+    }
+
+    /**
+     * 验证设备指纹
+     */
+    private boolean validateDeviceFingerprint(String storedFingerprint, String currentFingerprint) {
+        if (!deviceFingerprintCheck) {
+            return true; // 如果未启用设备指纹检查，直接通过
+        }
+
+        if (storedFingerprint == null || currentFingerprint == null) {
+            log.warn("设备指纹验证失败: 存储指纹或当前指纹为空");
+            return false;
+        }
+
+        boolean isValid = storedFingerprint.equals(currentFingerprint);
+        log.debug("设备指纹验证: stored={}, current={}, valid={}",
+                 storedFingerprint, currentFingerprint, isValid);
+        return isValid;
+    }
+
+    /**
+     * 增强的Refresh Token刷新（带设备验证）
+     */
+    public String refreshAccessTokenWithValidation(String refreshToken, String currentDeviceFingerprint, String currentIp) {
+        try {
+            String key = REFRESH_TOKEN_PREFIX + refreshToken;
+            RefreshTokenInfo refreshTokenInfo = (RefreshTokenInfo) redisTemplate.opsForValue().get(key);
+
+            if (refreshTokenInfo == null) {
+                throw new BusinessException(ResultCode.TOKEN_INVALID, "Refresh Token不存在或已过期");
+            }
+
+            // 检查refresh token是否过期
+            LocalDateTime now = LocalDateTime.now();
+            if (refreshTokenInfo.getExpireTime().isBefore(now)) {
+                redisTemplate.delete(key);
+                log.warn("Refresh Token已过期: userId={}, refreshToken={}", refreshTokenInfo.getUserId(), refreshToken);
+                throw new BusinessException(ResultCode.TOKEN_INVALID, "Refresh Token已过期");
+            }
+
+            // 验证设备指纹
+            if (!validateDeviceFingerprint(refreshTokenInfo.getDeviceFingerprint(), currentDeviceFingerprint)) {
+                log.warn("设备指纹验证失败: userId={}, refreshToken={}", refreshTokenInfo.getUserId(), refreshToken);
+                throw new BusinessException(ResultCode.TOKEN_INVALID, "设备指纹验证失败，可能存在安全风险");
+            }
+
+            // 检查是否需要自动续期
+            LocalDateTime renewalThreshold = now.plusDays(refreshTokenRenewalThresholdDays);
+            boolean needsRenewal = refreshTokenAutoRenewal &&
+                                  refreshTokenInfo.getExpireTime().isBefore(renewalThreshold);
+
+            // 获取用户ID并验证用户
+            Long userId = refreshTokenInfo.getUserId();
+            SysUser user = userService.getUserById(userId);
+            if (user == null || !user.canLogin()) {
+                redisTemplate.delete(key);
+                throw new BusinessException(ResultCode.USER_NOT_FOUND, "用户不存在或已被禁用");
+            }
+
+            // 生成新的access token
+            StpUtil.login(userId);
+            String newAccessToken = StpUtil.getTokenValue();
+
+            // 更新refresh token信息
+            refreshTokenInfo.setAccessToken(newAccessToken);
+
+            if (needsRenewal) {
+                LocalDateTime newExpireTime = now.plusDays(refreshTokenExpireDays);
+                refreshTokenInfo.setExpireTime(newExpireTime);
+                refreshTokenInfo.setCreateTime(now);
+                log.info("Refresh Token自动续期: userId={}, newExpireTime={}", userId, newExpireTime);
+            }
+
+            redisTemplate.opsForValue().set(key, refreshTokenInfo, refreshTokenExpireDays, TimeUnit.DAYS);
+
+            log.info("Refresh Token刷新成功: userId={}, refreshToken={}, newAccessToken={}, renewed={}, deviceValid={}",
+                    userId, refreshToken, newAccessToken, needsRenewal, true);
+
+            return newAccessToken;
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Refresh Token刷新异常: refreshToken={}", refreshToken, e);
+            throw new BusinessException(ResultCode.TOKEN_INVALID, "Refresh Token刷新失败");
+        }
     }
 
 

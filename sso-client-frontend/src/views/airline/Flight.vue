@@ -3,7 +3,7 @@
     <el-card>
       <template #header>
         <div class="card-header">
-          <el-icon><Airplane /></el-icon>
+          <el-icon><Ship /></el-icon>
           <span>航班管理</span>
           <div class="header-actions">
             <el-button type="primary" @click="showAddDialog = true">
@@ -212,7 +212,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Airplane, Plus, Search, Refresh } from '@element-plus/icons-vue'
+import { Ship, Plus, Search, Refresh } from '@element-plus/icons-vue'
 
 // 响应式数据
 const loading = ref(false)

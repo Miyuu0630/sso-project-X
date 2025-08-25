@@ -60,7 +60,7 @@
     <el-card class="security-card">
       <template #header>
         <div class="card-header">
-          <el-icon><Shield /></el-icon>
+          <el-icon><Setting /></el-icon>
           <span>安全设置</span>
         </div>
       </template>
@@ -204,8 +204,8 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { 
-  Lock, Shield, Monitor, Document, Check, Refresh 
+import {
+  Lock, Setting, Monitor, Document, Check, Refresh
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 

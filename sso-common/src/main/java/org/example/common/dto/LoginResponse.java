@@ -42,6 +42,11 @@ public class LoginResponse {
     private Long expiresIn;
 
     /**
+     * Refresh Token过期时间（秒）
+     */
+    private Long refreshTokenExpiresIn;
+
+    /**
      * Token过期时间戳
      */
     private Long expireTime;

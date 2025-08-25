@@ -14,18 +14,12 @@ spring:
     name: sso-client
 
   # Redis配置 (如果使用模式一或模式二，需要与SSO-Server共享Redis)
-  redis:
-    database: 1
-    host: 127.0.0.1
-    port: 6379
-    password:
-    timeout: 10000ms
-    lettuce:
-      pool:
-        max-active: 8
-        max-wait: -1ms
-        max-idle: 8
-        min-idle: 0
+  data:
+    redis:
+      host: 127.0.0.1   # Redis 地址
+      port: 6379
+      password: xmy5201314        # 如果没有密码留空
+      database: 0
 
 # 如果业务系统也有自己的业务数据库，可以配置独立的数据库
 # spring:

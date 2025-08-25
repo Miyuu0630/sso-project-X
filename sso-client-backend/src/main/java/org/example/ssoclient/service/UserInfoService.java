@@ -152,49 +152,18 @@ public class UserInfoService {
                 return JSONUtil.parseObj(cachedPermissions);
             }
 
-            // 根据用户ID构造角色和权限信息
-            List<String> roles = new ArrayList<>();
-            List<String> permissions = new ArrayList<>();
+            // 从SSO服务器获取用户的角色和权限信息
+            List<String> roles = getUserRolesFromSso(userId);
+            List<String> permissions = getUserPermissionsFromSso(userId);
 
-            // 根据用户ID分配角色（在实际项目中，这里应该从数据库获取）
-            if (userId.equals(1L)) {
-                // 管理员用户
-                roles = Arrays.asList("ADMIN");
-                permissions = Arrays.asList(
-                    "system:user:view", "system:user:edit", "system:user:add", "system:user:delete",
-                    "system:role:view", "system:role:edit", "system:menu:view",
-                    "monitor:online:view", "monitor:server:view", "monitor:loginlog:view"
-                );
-            } else if (userId.equals(2L)) {
-                // 个人用户
-                roles = Arrays.asList("PERSONAL_USER");
-                permissions = Arrays.asList(
-                    "user:profile:view", "user:profile:edit",
-                    "user:security:view", "user:security:edit",
-                    "user:oauth:view", "user:device:view"
-                );
-            } else if (userId.equals(3L)) {
-                // 企业用户
-                roles = Arrays.asList("ENTERPRISE_USER");
-                permissions = Arrays.asList(
-                    "enterprise:info:view", "enterprise:info:edit",
-                    "enterprise:member:view", "enterprise:member:edit",
-                    "enterprise:project:view", "enterprise:project:edit"
-                );
-            } else if (userId.equals(4L)) {
-                // 航司用户
-                roles = Arrays.asList("AIRLINE_USER");
-                permissions = Arrays.asList(
-                    "airline:info:view", "airline:info:edit",
-                    "airline:flight:view", "airline:flight:edit",
-                    "airline:passenger:view", "airline:passenger:edit"
-                );
-            } else {
-                // 默认个人用户
-                roles = Arrays.asList("PERSONAL_USER");
-                permissions = Arrays.asList(
-                    "user:profile:view", "user:profile:edit"
-                );
+            // 如果SSO服务器没有返回角色信息，则根据用户类型设置默认角色
+            if (roles == null || roles.isEmpty()) {
+                roles = getDefaultRolesByUserId(userId);
+            }
+
+            // 如果SSO服务器没有返回权限信息，则根据角色设置默认权限
+            if (permissions == null || permissions.isEmpty()) {
+                permissions = getDefaultPermissionsByRoles(roles);
             }
 
             Map<String, Object> permissionInfo = Map.of(
@@ -281,6 +250,103 @@ public class UserInfoService {
     }
     
     /**
+     * 从SSO服务器获取用户角色
+     */
+    private List<String> getUserRolesFromSso(Long userId) {
+        try {
+            String url = ssoServerUrl + "/sso/user-roles/" + userId;
+            String response = HttpUtil.get(url);
+            JSONObject result = JSONUtil.parseObj(response);
+
+            if (result.getInt("code") == 200) {
+                return result.getJSONArray("data").toList(String.class);
+            }
+        } catch (Exception e) {
+            log.warn("从SSO服务器获取用户角色失败, userId: {}, error: {}", userId, e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * 从SSO服务器获取用户权限
+     */
+    private List<String> getUserPermissionsFromSso(Long userId) {
+        try {
+            String url = ssoServerUrl + "/sso/user-permissions/" + userId;
+            String response = HttpUtil.get(url);
+            JSONObject result = JSONUtil.parseObj(response);
+
+            if (result.getInt("code") == 200) {
+                return result.getJSONArray("data").toList(String.class);
+            }
+        } catch (Exception e) {
+            log.warn("从SSO服务器获取用户权限失败, userId: {}, error: {}", userId, e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * 根据用户ID获取默认角色（降级策略）
+     */
+    private List<String> getDefaultRolesByUserId(Long userId) {
+        // 这里可以根据用户ID从本地数据库获取
+        // 暂时使用硬编码作为降级策略
+        if (userId.equals(1L)) {
+            return Arrays.asList("ADMIN");
+        } else if (userId.equals(2L)) {
+            return Arrays.asList("PERSONAL_USER");
+        } else if (userId.equals(3L)) {
+            return Arrays.asList("ENTERPRISE_USER");
+        } else if (userId.equals(4L)) {
+            return Arrays.asList("AIRLINE_USER");
+        } else {
+            return Arrays.asList("PERSONAL_USER");
+        }
+    }
+
+    /**
+     * 根据角色获取默认权限（降级策略）
+     */
+    private List<String> getDefaultPermissionsByRoles(List<String> roles) {
+        List<String> permissions = new ArrayList<>();
+
+        for (String role : roles) {
+            switch (role) {
+                case "ADMIN":
+                    permissions.addAll(Arrays.asList(
+                        "system:user:view", "system:user:edit", "system:user:add", "system:user:delete",
+                        "system:role:view", "system:role:edit", "system:menu:view",
+                        "monitor:online:view", "monitor:server:view", "monitor:loginlog:view"
+                    ));
+                    break;
+                case "PERSONAL_USER":
+                    permissions.addAll(Arrays.asList(
+                        "user:profile:view", "user:profile:edit",
+                        "user:security:view", "user:security:edit",
+                        "user:oauth:view", "user:device:view"
+                    ));
+                    break;
+                case "ENTERPRISE_USER":
+                    permissions.addAll(Arrays.asList(
+                        "enterprise:info:view", "enterprise:info:edit",
+                        "enterprise:member:view", "enterprise:member:edit",
+                        "enterprise:project:view", "enterprise:project:edit"
+                    ));
+                    break;
+                case "AIRLINE_USER":
+                    permissions.addAll(Arrays.asList(
+                        "airline:info:view", "airline:info:edit",
+                        "airline:flight:view", "airline:flight:edit",
+                        "airline:passenger:view", "airline:passenger:edit"
+                    ));
+                    break;
+            }
+        }
+
+        return permissions;
+    }
+
+    /**
      * 检查用户是否有指定角色
      */
     public boolean hasRole(String role) {
@@ -289,12 +355,12 @@ public class UserInfoService {
             if (permissions == null) {
                 return false;
             }
-            
+
             Object roleList = permissions.get("roles");
             if (roleList instanceof java.util.List) {
                 return ((java.util.List<?>) roleList).contains(role);
             }
-            
+
             return false;
         } catch (Exception e) {
             log.error("检查角色异常", e);

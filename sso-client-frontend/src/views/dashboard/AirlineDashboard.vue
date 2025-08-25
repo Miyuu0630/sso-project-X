@@ -5,7 +5,7 @@
       <div class="header-content">
         <div class="airline-info">
           <div class="airline-logo">
-            <el-icon size="32"><Airplane /></el-icon>
+            <el-icon size="32"><Ship /></el-icon>
           </div>
           <div class="airline-details">
             <h1>{{ airlineInfo.name }} - 航司运营控制台</h1>
@@ -281,8 +281,8 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { 
-  Airplane, Calendar, User, Location, Money, TrendCharts,
+import {
+  Ship, Calendar, User, Location, Money, TrendCharts,
   Check, ArrowUp, Tools, Monitor, Bell, ArrowRight
 } from '@element-plus/icons-vue'
 

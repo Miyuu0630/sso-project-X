@@ -112,13 +112,13 @@ const addDebugStep = (message) => {
 const handleSsoCallback = async () => {
   try {
     addDebugStep('开始处理 SSO 回调')
-    
+
     // 获取 URL 参数
     const query = route.query
     urlParams.value = { ...query }
-    
+
     addDebugStep(`URL 参数: ${JSON.stringify(query)}`)
-    
+
     // 检查必要参数
     const ticket = query.ticket
     const returnUrl = query.return_url || query.redirect || '/'
@@ -130,67 +130,76 @@ const handleSsoCallback = async () => {
     addDebugStep(`Ticket: ${ticket.substring(0, 20)}...`)
     addDebugStep(`返回地址: ${returnUrl}`)
 
-    // 步骤 1: 执行SSO登录
+    // 步骤 1: 验证Ticket
     currentStep.value = 1
-    message.value = '正在验证 Ticket 并执行登录...'
+    message.value = '正在验证登录凭证...'
 
-    // 调用客户端后端进行SSO登录（包含ticket验证和本地登录）
-    const loginResponse = await request.post('/sso-auth', { ticket })
-    if (loginResponse.data.code !== 200) {
-      throw new Error(loginResponse.data.message || 'SSO登录失败')
+    // 使用SSO服务器验证ticket
+    const ssoValidateResponse = await request.post('http://localhost:8081/sso/validate', null, {
+      params: { ticket }
+    })
+    if (ssoValidateResponse.data.code !== 200) {
+      throw new Error(ssoValidateResponse.data.message || 'Ticket验证失败')
     }
 
-    // 设置token和用户信息
-    const { userId, token } = loginResponse.data.data
-    authStore.setToken(token)
-    addDebugStep(`SSO登录成功，用户ID: ${userId}，Token已设置`)
+    const userInfo = ssoValidateResponse.data.data
+    addDebugStep(`Ticket验证成功，用户: ${userInfo.username}`)
 
-    // 步骤 2: 获取用户详细信息
+    // 步骤 2: 本地登录处理
     currentStep.value = 2
-    message.value = '正在获取用户信息...'
+    message.value = '正在处理本地登录...'
 
-    // 获取用户信息
-    await authStore.fetchUserData()
-    addDebugStep(`用户信息: ${authStore.userInfo?.username}`)
-    
+    // 设置用户信息到authStore
+    authStore.userInfo = userInfo
+    authStore.roles = userInfo.roles || []
+    authStore.primaryRole = getPrimaryRole(userInfo.roles || [])
+
+    // 设置token - 从ticket生成唯一token
+    const clientToken = 'sso_client_' + ticket.substring(0, 8) + '_' + Date.now()
+    authStore.setToken(clientToken)
+
+    // 通知后端建立本地会话
+    try {
+      const sessionResponse = await request.post('/sso/establish-session', {
+        ticket: ticket,
+        token: clientToken,
+        userInfo: userInfo
+      })
+      if (sessionResponse.data.code === 200) {
+        addDebugStep('本地会话建立成功')
+      } else {
+        addDebugStep('本地会话建立失败，但继续处理')
+      }
+    } catch (error) {
+      addDebugStep('本地会话建立失败，但继续处理: ' + error.message)
+    }
+
+    addDebugStep(`本地用户信息已设置，角色: ${authStore.primaryRole}`)
+
     // 步骤 3: 准备跳转
     currentStep.value = 3
     message.value = '登录成功，正在跳转...'
     success.value = true
-    
+
     addDebugStep(`准备跳转到: ${returnUrl}`)
-    
-    // 直接跳转到用户对应的角色仪表板
+
+    // 跳转到对应仪表板或原始URL
     setTimeout(() => {
-      // 根据用户角色跳转到对应仪表板
-      const userRoles = authStore.userInfo?.roles || []
-      if (userRoles.length > 0) {
-        // 获取主要角色
-        const roleHierarchy = ['ADMIN', 'AIRLINE_USER', 'ENTERPRISE_USER', 'PERSONAL_USER']
-        let primaryRole = 'PERSONAL_USER'
-        
-        for (const role of roleHierarchy) {
-          if (userRoles.includes(role)) {
-            primaryRole = role
-            break
-          }
+      if (returnUrl && returnUrl !== '/' && returnUrl !== window.location.origin + '/') {
+        // 如果有具体的returnUrl，跳转到该URL
+        addDebugStep(`跳转到原始URL: ${returnUrl}`)
+        // 对于外部URL，直接跳转
+        if (returnUrl.startsWith('http')) {
+          window.location.href = returnUrl
+        } else {
+          // 对于相对路径，使用Vue Router
+          router.push(returnUrl)
         }
-        
-        // 角色到仪表板的映射
-        const roleDashboardMap = {
-          'ADMIN': '/dashboard/admin',
-          'PERSONAL_USER': '/dashboard/personal',
-          'ENTERPRISE_USER': '/dashboard/enterprise',
-          'AIRLINE_USER': '/dashboard/airline'
-        }
-        
-        const dashboardPath = roleDashboardMap[primaryRole] || '/dashboard/personal'
-        addDebugStep(`根据角色 ${primaryRole} 跳转到 ${dashboardPath}`)
-        
-        router.push(dashboardPath)
       } else {
-        // 如果没有角色信息，跳转到默认页面
-        router.push(returnUrl)
+        // 否则跳转到对应仪表板
+        const dashboardPath = getDashboardPath(authStore.primaryRole)
+        addDebugStep(`跳转到仪表板: ${dashboardPath}`)
+        router.push(dashboardPath)
       }
     }, 1000)
     
@@ -218,10 +227,32 @@ const goHome = () => {
   router.push('/')
 }
 
+// 获取主要角色
+const getPrimaryRole = (userRoles) => {
+  const roleHierarchy = ['ADMIN', 'AIRLINE_USER', 'ENTERPRISE_USER', 'PERSONAL_USER']
+  for (const role of roleHierarchy) {
+    if (userRoles.includes(role)) {
+      return role
+    }
+  }
+  return 'PERSONAL_USER' // 默认角色
+}
+
+// 获取仪表板路径
+const getDashboardPath = (primaryRole) => {
+  const roleDashboardMap = {
+    'ADMIN': '/dashboard/admin',
+    'PERSONAL_USER': '/dashboard/personal',
+    'ENTERPRISE_USER': '/dashboard/enterprise',
+    'AIRLINE_USER': '/dashboard/airline'
+  }
+  return roleDashboardMap[primaryRole] || '/dashboard/personal'
+}
+
 // 生命周期
 onMounted(() => {
   addDebugStep('Callback 页面已挂载')
-  
+
   // 延迟处理，让用户看到加载状态
   setTimeout(() => {
     handleSsoCallback()

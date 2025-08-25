@@ -185,6 +185,16 @@ public class SsoController {
     }
 
     /**
+     * 验证SSO票据（GET方式，兼容前端调用）
+     */
+    @GetMapping("/validate")
+    @Operation(summary = "验证SSO票据", description = "GET方式验证票据，兼容前端调用")
+    public ApiResponse<UserDTO> validateTicketGet(@RequestParam @NotBlank String ticket,
+                                                 @RequestParam(required = false) String clientId) {
+        return validateTicket(ticket, clientId);
+    }
+
+    /**
      * 兼容接口：检查票据有效性（GET方式）
      * 为了兼容旧版客户端
      */
@@ -428,10 +438,10 @@ public class SsoController {
 
             "<div class=\"demo-accounts\">" +
             "<h4>测试账号：</h4>" +
-            "<div class=\"account-item\" onclick=\"document.getElementById('username').value='admin'; document.getElementById('password').value='123456'; document.getElementById('selectedRole').value='ADMIN'; document.querySelectorAll('.role-tab').forEach(tab => { tab.classList.remove('active'); if(tab.dataset.role==='ADMIN') tab.classList.add('active'); }); console.log('填充管理员账号');\">管理员: admin / 123456 <span class=\"role-badge\">ADMIN</span></div>" +
-            "<div class=\"account-item\" onclick=\"document.getElementById('username').value='airline_user'; document.getElementById('password').value='123456'; document.getElementById('selectedRole').value='AIRLINE_USER'; document.querySelectorAll('.role-tab').forEach(tab => { tab.classList.remove('active'); if(tab.dataset.role==='AIRLINE_USER') tab.classList.add('active'); }); console.log('填充航司用户账号');\">航司用户: airline_user / 123456 <span class=\"role-badge\">AIRLINE</span></div>" +
-            "<div class=\"account-item\" onclick=\"document.getElementById('username').value='enterprise_user'; document.getElementById('password').value='123456'; document.getElementById('selectedRole').value='ENTERPRISE_USER'; document.querySelectorAll('.role-tab').forEach(tab => { tab.classList.remove('active'); if(tab.dataset.role==='ENTERPRISE_USER') tab.classList.add('active'); }); console.log('填充企业用户账号');\">企业用户: enterprise_user / 123456 <span class=\"role-badge\">ENTERPRISE</span></div>" +
-            "<div class=\"account-item\" onclick=\"document.getElementById('username').value='personal_user'; document.getElementById('password').value='123456'; document.getElementById('selectedRole').value='PERSONAL_USER'; document.querySelectorAll('.role-tab').forEach(tab => { tab.classList.remove('active'); if(tab.dataset.role==='PERSONAL_USER') tab.classList.add('active'); }); console.log('填充个人用户账号');\">个人用户: personal_user / 123456 <span class=\"role-badge\">PERSONAL</span></div>" +
+            "<div class=\"account-item\" onclick=\"fillAccount('admin', 'admin123456')\">管理员: admin / admin123456 <span class=\"role-badge\">ADMIN</span></div>" +
+            "<div class=\"account-item\" onclick=\"fillAccount('airline_user', '123456')\">航司用户: airline_user / 123456 <span class=\"role-badge\">AIRLINE</span></div>" +
+            "<div class=\"account-item\" onclick=\"fillAccount('enterprise_user', '123456')\">企业用户: enterprise_user / 123456 <span class=\"role-badge\">ENTERPRISE</span></div>" +
+            "<div class=\"account-item\" onclick=\"fillAccount('personal_user', '123456')\">个人用户: personal_user / 123456 <span class=\"role-badge\">PERSONAL</span></div>" +
             "</div>" +
             "</div>" +
             "<script>" +

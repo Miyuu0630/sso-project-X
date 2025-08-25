@@ -8,13 +8,16 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.ssoclient.service.UserInfoService;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * SSO客户端控制器
@@ -29,45 +32,93 @@ public class SsoClientController {
     private String ssoServerUrl;
 
     private final UserInfoService userInfoService;
+    private final RedisTemplate<String, Object> redisTemplate;
+
+    // 防循环重定向配置
+    private static final int MAX_REDIRECT_COUNT = 3;
+    private static final String REDIRECT_COUNT_PREFIX = "sso_redirect_count:";
+    private static final Duration REDIRECT_COUNT_EXPIRE = Duration.ofMinutes(5);
     
     /**
-     * SSO登录回调接口
+     * SSO登录回调接口 - 增强版本，包含防循环重定向和安全性检查
      */
     @RequestMapping("/sso-auth")
-    public Object ssoAuth(HttpServletRequest request, @RequestParam(required = false) String ticket) {
-        log.info("SSO登录回调: {}, ticket: {}", request.getRequestURL(), ticket);
+    public Object ssoAuth(HttpServletRequest request,
+                         @RequestParam(required = false) String ticket,
+                         @RequestParam(required = false) String state) {
+        String clientIp = getClientIp(request);
+        log.info("SSO登录回调: {}, ticket: {}, clientIp: {}", request.getRequestURL(),
+                ticket != null ? "存在" : "不存在", clientIp);
 
         try {
+            // 1. 防循环重定向检查
+            if (!checkRedirectLoop(clientIp)) {
+                log.warn("检测到循环重定向，客户端IP: {}", clientIp);
+                return Map.of(
+                    "code", 429,
+                    "message", "重定向次数过多，请稍后重试",
+                    "data", Map.of("errorType", "REDIRECT_LOOP")
+                );
+            }
+
             if (ticket != null && !ticket.isEmpty()) {
-                // 验证ticket - 使用正确的接口
-                String url = ssoServerUrl + "/sso/validate";
-                Map<String, Object> params = Map.of("ticket", ticket);
-                String response = HttpUtil.post(url, params);
-                JSONObject result = JSONUtil.parseObj(response);
+                // 2. Ticket安全性验证
+                if (!isValidTicketFormat(ticket)) {
+                    log.warn("无效的ticket格式: {}, clientIp: {}", ticket, clientIp);
+                    return Map.of(
+                        "code", 400,
+                        "message", "无效的认证票据",
+                        "data", Map.of("errorType", "INVALID_TICKET")
+                    );
+                }
 
-                if (result.getInt("code") == 200) {
-                    JSONObject data = result.getJSONObject("data");
-                    if (data != null) {
-                        // ticket有效，执行本地登录
-                        String userId = data.getStr("id");
-                        StpUtil.login(userId);
+                // 3. 验证ticket - 使用增强的验证接口
+                Map<String, Object> validationResult = validateTicketWithSecurity(ticket, clientIp);
 
-                        log.info("SSO登录成功，用户ID: {}", userId);
+                if ((Integer) validationResult.get("code") == 200) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> userData = (Map<String, Object>) validationResult.get("data");
+
+                    if (userData != null) {
+                        // 4. 建立安全的本地会话
+                        String userId = userData.get("id").toString();
+                        establishSecureSession(userId, userData, clientIp);
+
+                        // 5. 清除重定向计数
+                        clearRedirectCount(clientIp);
+
+                        log.info("SSO登录成功，用户ID: {}, clientIp: {}", userId, clientIp);
+
+                        // 6. 解析原始URL
+                        String originalUrl = decodeState(state);
+
                         return Map.of(
                             "code", 200,
                             "message", "登录成功",
                             "data", Map.of(
                                 "userId", userId,
-                                "token", StpUtil.getTokenValue()
+                                "token", StpUtil.getTokenValue(),
+                                "redirectUrl", originalUrl != null ? originalUrl : "/",
+                                "userInfo", userData
                             )
                         );
                     }
+                } else {
+                    log.warn("Ticket验证失败: {}, clientIp: {}", validationResult.get("message"), clientIp);
                 }
             }
 
-            // ticket无效或不存在，重定向到认证中心
+            // 7. 增加重定向计数
+            incrementRedirectCount(clientIp);
+
+            // 8. 构建安全的登录URL
+            String currentUrl = request.getRequestURL().toString();
+            String encodedState = encodeState(currentUrl);
             String loginUrl = ssoServerUrl + "/sso/auth?redirect=" +
-                             request.getRequestURL().toString();
+                             java.net.URLEncoder.encode(currentUrl, "UTF-8") +
+                             "&state=" + encodedState +
+                             "&client_ip=" + clientIp +
+                             "&timestamp=" + System.currentTimeMillis();
 
             return Map.of(
                 "code", 302,
@@ -76,10 +127,11 @@ public class SsoClientController {
             );
 
         } catch (Exception e) {
-            log.error("SSO回调处理失败", e);
+            log.error("SSO回调处理失败, clientIp: {}", clientIp, e);
             return Map.of(
                 "code", 500,
-                "message", "登录失败"
+                "message", "登录失败",
+                "data", Map.of("errorType", "INTERNAL_ERROR")
             );
         }
     }
@@ -254,22 +306,76 @@ public class SsoClientController {
     }
     
     /**
+     * 建立本地会话（前端SSO登录成功后调用）
+     */
+    @PostMapping("/sso/establish-session")
+    public Object establishSession(@RequestBody Map<String, Object> sessionData) {
+        try {
+            String ticket = (String) sessionData.get("ticket");
+            String clientToken = (String) sessionData.get("token");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> userInfo = (Map<String, Object>) sessionData.get("userInfo");
+
+            if (ticket == null || userInfo == null || userInfo.get("id") == null) {
+                return Map.of("code", 400, "message", "参数不完整");
+            }
+
+            // 验证ticket有效性
+            String verifyUrl = ssoServerUrl + "/sso/validate";
+            Map<String, Object> verifyParams = Map.of("ticket", ticket);
+            String verifyResponse = HttpUtil.post(verifyUrl, verifyParams);
+            JSONObject verifyResult = JSONUtil.parseObj(verifyResponse);
+
+            if (verifyResult.getInt("code") != 200) {
+                return Map.of("code", 401, "message", "Ticket验证失败");
+            }
+
+            // 建立本地会话
+            Long userId = Long.valueOf(userInfo.get("id").toString());
+            StpUtil.login(userId);
+
+            // 存储用户信息到缓存
+            String cacheKey = "user_info:" + userId;
+            redisTemplate.opsForValue().set(cacheKey, JSONUtil.toJsonStr(userInfo), Duration.ofMinutes(30));
+
+            log.info("本地会话建立成功, userId: {}, ticket: {}", userId, ticket);
+            return Map.of("code", 200, "message", "会话建立成功");
+
+        } catch (Exception e) {
+            log.error("建立本地会话失败", e);
+            return Map.of("code", 500, "message", "会话建立失败");
+        }
+    }
+
+    /**
      * 登出
      */
     @PostMapping("/sso/logout")
     public Object logout() {
         try {
             if (StpUtil.isLogin()) {
-                String token = StpUtil.getTokenValue();
-                
-                // 调用认证中心登出接口
-                String url = ssoServerUrl + "/sso/single-logout?ticket=" + token;
-                HttpUtil.post(url, "");
-                
+                Long userId = StpUtil.getLoginIdAsLong();
+
+                // 获取用户当前的ticket（如果有）
+                String ticketCacheKey = "user_ticket:" + userId;
+                String ticket = (String) redisTemplate.opsForValue().get(ticketCacheKey);
+
+                if (ticket != null) {
+                    // 调用认证中心登出接口
+                    String url = ssoServerUrl + "/sso/logout";
+                    Map<String, Object> params = Map.of("ticket", ticket);
+                    HttpUtil.post(url, params);
+                }
+
+                // 清除本地缓存
+                redisTemplate.delete("user_info:" + userId);
+                redisTemplate.delete("user_permissions:" + userId);
+                redisTemplate.delete(ticketCacheKey);
+
                 // 本地登出
                 StpUtil.logout();
             }
-            
+
             return Map.of("code", 200, "message", "登出成功");
         } catch (Exception e) {
             log.error("登出失败", e);
@@ -351,5 +457,183 @@ public class SsoClientController {
                "<a href='/sso/userinfo'>获取用户信息</a><br/>" +
                "<a href='/api/user/profile'>获取用户资料</a><br/>" +
                "<a href='/sso/logout'>登出</a>";
+    }
+
+    // ========================================
+    // 安全性辅助方法
+    // ========================================
+
+    /**
+     * 检查是否存在循环重定向
+     */
+    private boolean checkRedirectLoop(String clientIp) {
+        try {
+            String countKey = REDIRECT_COUNT_PREFIX + clientIp;
+            String countStr = (String) redisTemplate.opsForValue().get(countKey);
+            int count = countStr != null ? Integer.parseInt(countStr) : 0;
+            return count < MAX_REDIRECT_COUNT;
+        } catch (Exception e) {
+            log.error("检查重定向循环失败", e);
+            return true; // 出错时允许重定向
+        }
+    }
+
+    /**
+     * 增加重定向计数
+     */
+    private void incrementRedirectCount(String clientIp) {
+        try {
+            String countKey = REDIRECT_COUNT_PREFIX + clientIp;
+            String countStr = (String) redisTemplate.opsForValue().get(countKey);
+            int count = countStr != null ? Integer.parseInt(countStr) : 0;
+            redisTemplate.opsForValue().set(countKey, String.valueOf(count + 1), REDIRECT_COUNT_EXPIRE);
+        } catch (Exception e) {
+            log.error("增加重定向计数失败", e);
+        }
+    }
+
+    /**
+     * 清除重定向计数
+     */
+    private void clearRedirectCount(String clientIp) {
+        try {
+            String countKey = REDIRECT_COUNT_PREFIX + clientIp;
+            redisTemplate.delete(countKey);
+        } catch (Exception e) {
+            log.error("清除重定向计数失败", e);
+        }
+    }
+
+    /**
+     * 验证ticket格式
+     */
+    private boolean isValidTicketFormat(String ticket) {
+        if (ticket == null || ticket.trim().isEmpty()) {
+            return false;
+        }
+
+        // 基本格式检查：长度、字符集等
+        if (ticket.length() < 10 || ticket.length() > 200) {
+            return false;
+        }
+
+        // 检查是否包含危险字符
+        String dangerousChars = "<>\"'&;(){}[]|\\^~`";
+        for (char c : dangerousChars.toCharArray()) {
+            if (ticket.indexOf(c) != -1) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * 增强的ticket验证，包含安全性检查
+     */
+    private Map<String, Object> validateTicketWithSecurity(String ticket, String clientIp) {
+        try {
+            // 使用GET方法调用票据验证接口
+            String url = ssoServerUrl + "/sso/check-ticket?ticket=" + ticket + "&clientId=sso-client1";
+
+            String response = HttpUtil.get(url, 5000); // 5秒超时
+            JSONObject result = JSONUtil.parseObj(response);
+
+            return Map.of(
+                "code", result.getInt("code"),
+                "message", result.getStr("message"),
+                "data", result.get("data")
+            );
+
+        } catch (Exception e) {
+            log.error("Ticket验证失败: ticket={}, clientIp={}", ticket, clientIp, e);
+            return Map.of(
+                "code", 500,
+                "message", "验证服务异常",
+                "data", null
+            );
+        }
+    }
+
+    /**
+     * 建立安全的本地会话
+     */
+    private void establishSecureSession(String userId, Map<String, Object> userData, String clientIp) {
+        try {
+            // 1. Sa-Token登录
+            StpUtil.login(userId);
+
+            // 2. 存储用户信息到缓存（增强安全性）
+            String userCacheKey = "user_info:" + userId;
+            Map<String, Object> secureUserData = new HashMap<>(userData);
+            secureUserData.put("loginTime", System.currentTimeMillis());
+            secureUserData.put("loginIp", clientIp);
+            secureUserData.put("sessionId", StpUtil.getTokenValue());
+
+            redisTemplate.opsForValue().set(userCacheKey, JSONUtil.toJsonStr(secureUserData), Duration.ofHours(2));
+
+            // 3. 记录登录日志
+            log.info("用户登录成功: userId={}, clientIp={}, sessionId={}",
+                    userId, clientIp, StpUtil.getTokenValue());
+
+        } catch (Exception e) {
+            log.error("建立安全会话失败: userId={}, clientIp={}", userId, clientIp, e);
+            throw new RuntimeException("会话建立失败", e);
+        }
+    }
+
+    /**
+     * 编码状态参数
+     */
+    private String encodeState(String originalUrl) {
+        try {
+            if (originalUrl == null) return null;
+            return java.util.Base64.getEncoder().encodeToString(originalUrl.getBytes("UTF-8"));
+        } catch (Exception e) {
+            log.error("编码状态参数失败", e);
+            return null;
+        }
+    }
+
+    /**
+     * 解码状态参数
+     */
+    private String decodeState(String state) {
+        try {
+            if (state == null || state.trim().isEmpty()) return null;
+            return new String(java.util.Base64.getDecoder().decode(state), "UTF-8");
+        } catch (Exception e) {
+            log.error("解码状态参数失败", e);
+            return null;
+        }
+    }
+
+    /**
+     * 获取客户端真实IP
+     */
+    private String getClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("WL-Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("HTTP_CLIENT_IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("HTTP_X_FORWARDED_FOR");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        }
+
+        // 处理多个IP的情况，取第一个
+        if (ip != null && ip.contains(",")) {
+            ip = ip.split(",")[0].trim();
+        }
+
+        return ip;
     }
 }

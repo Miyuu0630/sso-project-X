@@ -1,6 +1,9 @@
 package org.example.ssoclient.dto;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.List;
 
@@ -8,6 +11,9 @@ import java.util.List;
  * 角色信息DTO
  */
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class RoleInfoDTO {
     
     /**

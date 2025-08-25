@@ -47,16 +47,32 @@ export const useAuthStore = defineStore('auth', () => {
   const initAuth = async () => {
     // 如果在callback页面，跳过初始化检查，让callback页面处理登录流程
     if (window.location.pathname === '/callback') {
+      console.log('在callback页面，跳过初始化检查')
       return
     }
 
-    if (token.value) {
-      try {
-        await fetchUserData()
-      } catch (error) {
-        console.error('初始化认证状态失败:', error)
-        clearAuth()
+    console.log('初始化认证状态，当前token:', token.value ? '存在' : '不存在')
+
+    // 无论是否有token，都尝试验证登录状态
+    // 因为SSO登录后可能有用户信息但token是临时的
+    try {
+      console.log('尝试验证登录状态...')
+      const isValid = await checkTokenValidity()
+
+      if (isValid && userInfo.value) {
+        console.log('登录状态验证成功')
+        // 如果用户信息不完整，尝试重新获取
+        if (!userInfo.value.roles || userInfo.value.roles.length === 0) {
+          console.log('用户信息不完整，重新获取...')
+          await fetchRoleInfo()
+        }
+      } else {
+        console.log('登录状态验证失败')
       }
+    } catch (error) {
+      console.error('初始化认证状态失败:', error)
+      console.log('清除认证信息')
+      clearAuth()
     }
   }
 
@@ -143,7 +159,7 @@ export const useAuthStore = defineStore('auth', () => {
   const redirectToLogin = (returnUrl = window.location.href) => {
     const ssoServerUrl = 'http://localhost:8081'
     const callbackUrl = `${window.location.origin}/callback`
-    // 使用Sa-Token SSO标准地址
+    // 使用Sa-Token SSO标准地址 - 修正redirect参数
     const loginUrl = `${ssoServerUrl}/sso/auth?redirect=${encodeURIComponent(callbackUrl)}&return_url=${encodeURIComponent(returnUrl)}`
     console.log('重定向到SSO登录页面:', loginUrl)
 
@@ -281,18 +297,48 @@ export const useAuthStore = defineStore('auth', () => {
 
   // 验证 Token 有效性
   const checkTokenValidity = async () => {
-    if (!token.value) return false
+    // 优先检查是否有完整的用户信息
+    if (userInfo.value && userInfo.value.id && userInfo.value.username) {
+      console.log('用户信息完整，验证通过')
+      return true
+    }
+
+    // 如果有token但用户信息不完整，尝试获取
+    if (token.value && (!userInfo.value || !userInfo.value.id)) {
+      try {
+        console.log('Token存在但用户信息不完整，尝试获取')
+        await fetchUserData()
+        return !!(userInfo.value && userInfo.value.id)
+      } catch (error) {
+        console.error('获取用户信息失败:', error)
+        clearAuth()
+        return false
+      }
+    }
+
+    // 如果没有token或用户信息，验证失败
+    if (!token.value || !userInfo.value) {
+      console.log('Token或用户信息不存在')
+      return false
+    }
+
+    // 最后尝试从后端验证登录状态
     try {
-      const response = await request.get('/sso/verify')
-      if (response.data.code === 200 && response.data.data.valid) {
-        if (response.data.data.userInfo) userInfo.value = response.data.data.userInfo
+      console.log('从后端验证登录状态')
+      const response = await request.get('/sso/check-login')
+      if (response.data && response.data.isLogin) {
+        // 确保用户信息是最新的
+        if (!userInfo.value || !userInfo.value.roles) {
+          await fetchUserData()
+        }
         return true
       } else {
+        console.log('后端验证失败，清除认证信息')
         clearAuth()
         return false
       }
     } catch (error) {
-      console.error('Token 验证失败:', error)
+      console.error('后端验证失败:', error)
       clearAuth()
       return false
     }

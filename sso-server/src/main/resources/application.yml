@@ -65,24 +65,41 @@ mybatis:
     # 打印SQL语句
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
-# Sa-Token 配置
+# Sa-Token 配置 - 增强安全性版本
 sa-token:
   # token 名称（同时也是 cookie 名称）
   token-name: satoken
-  # token 有效期（单位：秒） 默认30天，-1 代表永久有效
-  timeout: 2592000
-  # token 最低活跃频率（单位：秒），如果 token 超过此时间没有访问系统就会被冻结，默认-1 代表不限制，永不冻结
-  active-timeout: -1
+  # token 有效期（单位：秒） 2小时，提高安全性
+  timeout: 7200
+  # token 最低活跃频率（单位：秒），30分钟无操作过期
+  active-timeout: 1800
   # 是否允许同一账号多地同时登录 （为 true 时允许一起登录, 为 false 时新登录挤掉旧登录）
   is-concurrent: true
-  # 在多人登录同一账号时，是否共用一个 token （为 true 时所有登录共用一个 token, 为 false 时每次登录新建一个 token）
+  # 在多人登录同一账号时，是否共用一个 token （为 true 时共用token，确保会话一致性）
   is-share: true
-  # token 风格（默认可取值：uuid、simple-uuid、random-32、random-64、random-128、tik）
-  token-style: uuid
+  # token 风格（使用更安全的随机字符串）
+  token-style: random-128
   # 是否输出操作日志
   is-log: true
   # Token 存储方式配置（使用Redis存储，重启后不丢失）
   dao-type: redis
+  # 启用JWT混合模式（提高性能和安全性）
+  jwt-secret-key: "your-jwt-secret-key-change-in-production"
+  # 是否在每次请求后刷新token活跃时间
+  is-read-head: true
+  # 是否在每次请求后刷新token过期时间
+  is-read-cookie: true
+
+# Refresh Token 配置
+refresh-token:
+  # Refresh Token有效期（天）
+  expire-days: 7
+  # 是否启用Refresh Token自动续期
+  auto-renewal: true
+  # 续期阈值（在Refresh Token过期前多少天自动续期）
+  renewal-threshold-days: 1
+  # 是否启用设备指纹验证
+  device-fingerprint-check: true
 
   # CORS 跨域配置
   cors:

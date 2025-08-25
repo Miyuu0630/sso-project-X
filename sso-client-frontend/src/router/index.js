@@ -351,7 +351,62 @@ const getUserPrimaryRole = (userRoles) => {
   return 'PERSONAL_USER' // 默认角色
 }
 
-// 路由守卫
+// 防循环重定向配置
+const MAX_REDIRECT_COUNT = 3
+const REDIRECT_COUNT_KEY = 'sso_redirect_count'
+const REDIRECT_COUNT_EXPIRE = 5 * 60 * 1000 // 5分钟
+
+// 防循环重定向辅助函数
+const checkRedirectLoop = () => {
+  try {
+    const data = localStorage.getItem(REDIRECT_COUNT_KEY)
+    if (!data) return true
+
+    const { count, timestamp } = JSON.parse(data)
+
+    // 检查是否过期
+    if (Date.now() - timestamp > REDIRECT_COUNT_EXPIRE) {
+      localStorage.removeItem(REDIRECT_COUNT_KEY)
+      return true
+    }
+
+    return count < MAX_REDIRECT_COUNT
+  } catch (error) {
+    console.error('检查重定向循环失败:', error)
+    return true // 出错时允许重定向
+  }
+}
+
+const incrementRedirectCount = () => {
+  try {
+    const data = localStorage.getItem(REDIRECT_COUNT_KEY)
+    let count = 0
+
+    if (data) {
+      const parsed = JSON.parse(data)
+      if (Date.now() - parsed.timestamp <= REDIRECT_COUNT_EXPIRE) {
+        count = parsed.count
+      }
+    }
+
+    localStorage.setItem(REDIRECT_COUNT_KEY, JSON.stringify({
+      count: count + 1,
+      timestamp: Date.now()
+    }))
+  } catch (error) {
+    console.error('增加重定向计数失败:', error)
+  }
+}
+
+const clearRedirectCount = () => {
+  try {
+    localStorage.removeItem(REDIRECT_COUNT_KEY)
+  } catch (error) {
+    console.error('清除重定向计数失败:', error)
+  }
+}
+
+// 路由守卫 - 增强版本，包含防循环重定向
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
 
@@ -363,29 +418,61 @@ router.beforeEach(async (to, from, next) => {
     primaryRole: authStore.primaryRole
   })
 
-  // 特殊处理：访问根路径时，根据用户登录状态决定跳转
-  if (to.path === '/') {
-    if (authStore.isLoggedIn) {
-      // 已登录用户，根据角色重定向到对应仪表板
-      const userRoles = authStore.userInfo?.roles || []
-      const primaryRole = getUserPrimaryRole(userRoles)
-      const dashboardPath = roleDashboardMap[primaryRole]
+  // 1. 白名单路由直接放行
+  const whiteList = ['/callback', '/error', '/404']
+  if (whiteList.includes(to.path)) {
+    // 清除重定向计数（成功到达回调页面）
+    if (to.path === '/callback') {
+      clearRedirectCount()
+    }
+    next()
+    return
+  }
 
-      if (dashboardPath) {
-        console.log(`用户角色 ${primaryRole}，重定向到 ${dashboardPath}`)
-        next(dashboardPath)
+  // 2. 防循环重定向检查
+  if (to.meta.requiresAuth && !checkRedirectLoop()) {
+    console.warn('检测到循环重定向，跳转到错误页面')
+    next('/error?reason=redirect_loop')
+    return
+  }
+
+  // 3. 特殊处理：访问根路径时，根据用户登录状态决定跳转
+  if (to.path === '/') {
+    try {
+      // 检查是否有有效的登录状态（有用户信息或token）
+      const hasValidLogin = authStore.userInfo && authStore.userInfo.id
+
+      if (hasValidLogin) {
+        // 已登录用户，根据角色重定向到对应仪表板
+        const userRoles = authStore.userInfo?.roles || []
+        const primaryRole = getUserPrimaryRole(userRoles)
+        const dashboardPath = roleDashboardMap[primaryRole]
+
+        if (dashboardPath) {
+          console.log(`用户角色 ${primaryRole}，重定向到 ${dashboardPath}`)
+          next(dashboardPath)
+          return
+        } else {
+          console.log('用户角色未识别，重定向到个人仪表板')
+          next('/dashboard/personal')
+          return
+        }
+      } else {
+        // 未登录用户，增加重定向计数后跳转到SSO登录页面
+        incrementRedirectCount()
+        console.log('用户未登录，访问根路径时直接跳转到SSO登录')
+        authStore.redirectToLogin('/')
         return
       }
-    } else {
-      // 未登录用户，直接跳转到SSO登录页面
-      console.log('用户未登录，访问根路径时直接跳转到SSO登录')
-      authStore.redirectToLogin('/')
+    } catch (error) {
+      console.error('根路径处理失败:', error)
+      next('/error?reason=root_path_failed')
       return
     }
   }
 
   // 特殊处理：访问通用仪表板路径时，重定向到角色专用仪表板
-  if (to.path === '/dashboard' && authStore.isLoggedIn) {
+  if (to.path === '/dashboard' && authStore.userInfo && authStore.userInfo.id) {
     const userRoles = authStore.userInfo?.roles || []
     const primaryRole = getUserPrimaryRole(userRoles)
     const dashboardPath = roleDashboardMap[primaryRole]
@@ -399,32 +486,34 @@ router.beforeEach(async (to, from, next) => {
 
   // 检查是否需要登录（排除根路径和回调页面，因为上面已经处理了）
   if (to.meta.requiresAuth && to.path !== '/' && to.path !== '/callback') {
-    if (!authStore.isLoggedIn) {
+    // 统一使用用户信息检查登录状态
+    const hasValidLogin = authStore.userInfo && authStore.userInfo.id
+
+    if (!hasValidLogin) {
       console.log('用户未登录，重定向到 SSO 登录')
-      // 未登录，跳转到SSO登录
       authStore.redirectToLogin(to.fullPath)
       return
     }
 
-    // 验证 Token 有效性
-    const isTokenValid = await authStore.checkTokenValidity()
-    if (!isTokenValid) {
-      console.log('Token 无效，重定向到 SSO 登录')
-      authStore.redirectToLogin(to.fullPath)
-      return
-    }
-
-    // 如果用户信息还没有加载完成，先加载用户信息
-    if (!authStore.userInfo || !authStore.roles || authStore.roles.length === 0) {
-      console.log('用户信息未加载完成，正在加载...')
+    // 如果用户信息不完整，尝试重新获取
+    if (!authStore.userInfo || !authStore.userInfo.roles || authStore.userInfo.roles.length === 0) {
+      console.log('用户信息不完整，正在加载...')
       try {
         await authStore.fetchUserData()
       } catch (error) {
-        console.error('加载用户信息失败:', error)
+        console.error('获取用户信息失败:', error)
         authStore.clearAuth()
         authStore.redirectToLogin(to.fullPath)
         return
       }
+    }
+
+    // 确保用户信息已完全加载
+    if (!authStore.userInfo || !authStore.userInfo.id) {
+      console.log('用户信息加载失败，重新登录')
+      authStore.clearAuth()
+      authStore.redirectToLogin(to.fullPath)
+      return
     }
 
     // 检查角色权限
