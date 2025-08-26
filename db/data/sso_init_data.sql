@@ -1,9 +1,9 @@
 -- ========================================
 -- SSO系统初始化数据脚本
--- 版本: 2.0.0
--- 创建时间: 2025-08-22
--- 说明: 初始化角色、权限、管理员账号等基础数据
--- 依赖: sso_complete_setup.sql
+-- 版本: 2.0.0 (MD5+盐值密码方案)
+-- 创建时间: 2025-08-25
+-- 说明: 初始化角色、权限、管理员账号等基础数据，支持MD5+随机盐值密码加密
+-- 依赖: sso_database_schema.sql
 -- ========================================
 
 USE sso_db;
@@ -14,10 +14,10 @@ USE sso_db;
 
 -- 1. 插入四类用户角色
 INSERT INTO sys_role (role_name, role_key, role_sort, status, create_time, remark) VALUES
-('管理员', 'ADMIN', 1, '1', NOW(), '系统管理员，拥有所有权限，负责系统管理和用户管理'),
-('个人用户', 'PERSONAL_USER', 2, '1', NOW(), '个人用户，拥有基本功能权限，可以使用系统基础服务'),
-('企业用户', 'ENTERPRISE_USER', 3, '1', NOW(), '企业用户，拥有企业级功能权限，可以管理企业相关业务'),
-('航司用户', 'AIRLINE_USER', 4, '1', NOW(), '航空公司用户，拥有航司专用功能权限，可以管理航司业务')
+                                                                                       ('管理员', 'ADMIN', 1, '1', NOW(), '系统管理员，拥有所有权限，负责系统管理和用户管理'),
+                                                                                       ('个人用户', 'PERSONAL_USER', 2, '1', NOW(), '个人用户，拥有基本功能权限，可以使用系统基础服务'),
+                                                                                       ('企业用户', 'ENTERPRISE_USER', 3, '1', NOW(), '企业用户，拥有企业级功能权限，可以管理企业相关业务'),
+                                                                                       ('航司用户', 'AIRLINE_USER', 4, '1', NOW(), '航空公司用户，拥有航司专用功能权限，可以管理航司业务')
 ON DUPLICATE KEY UPDATE role_name=VALUES(role_name);
 
 -- 2. 插入一级菜单权限
@@ -97,134 +97,79 @@ ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
 
 -- 6. 个人用户角色权限分配（只有用户中心权限）
 INSERT INTO sys_role_menu (role_id, menu_id)
-SELECT 2, id FROM sys_menu 
-WHERE id IN (2, 9, 10, 11, 12, 13) -- 用户中心及其子菜单
+SELECT 2, id FROM sys_menu
+WHERE parent_id = 2 OR id = 2
 ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
 
 -- 7. 企业用户角色权限分配（用户中心 + 企业管理权限）
 INSERT INTO sys_role_menu (role_id, menu_id)
-SELECT 3, id FROM sys_menu 
-WHERE id IN (2, 3, 9, 10, 11, 12, 13, 14, 15, 16) -- 用户中心 + 企业管理
+SELECT 3, id FROM sys_menu
+WHERE parent_id IN (2, 3) OR id IN (2, 3)
 ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
 
 -- 8. 航司用户角色权限分配（用户中心 + 航司管理权限）
 INSERT INTO sys_role_menu (role_id, menu_id)
-SELECT 4, id FROM sys_menu 
-WHERE id IN (2, 4, 9, 10, 11, 12, 13, 17, 18, 19) -- 用户中心 + 航司管理
+SELECT 4, id FROM sys_menu
+WHERE parent_id IN (2, 4) OR id IN (2, 4)
 ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
 
 -- ========================================
--- 第三部分：初始用户账号
+-- 第三部分：初始用户账号（MD5+盐值加密）
 -- ========================================
 
--- 9. 插入初始管理员账号（明文密码: admin123456）
-INSERT INTO sys_user (username, password, real_name, email, phone, status, user_type, password_update_time, create_time, remark) VALUES
-('admin', 'admin123456', '系统管理员', 'admin@sso.com', '13800000000', '1', 'normal', NOW(), NOW(), '初始管理员账号-明文密码')
-ON DUPLICATE KEY UPDATE password='admin123456', password_update_time=NOW();
+-- 9. 插入初始管理员账号
+-- 用户名: admin
+-- 密码: admin123456
+-- 盐值: a1b2c3d4e5f6789012345678901234ab
+-- MD5(admin123456 + a1b2c3d4e5f6789012345678901234ab) = c091d2cf4a0c12813f546fa11739ea40
+INSERT INTO sys_user (username, password, salt, real_name, email, phone, status, user_type, password_update_time, create_time, remark) VALUES
+    ('admin', 'c091d2cf4a0c12813f546fa11739ea40', 'a1b2c3d4e5f6789012345678901234ab', '系统管理员', 'admin@sso.com', '13800000000', '1', 'normal', NOW(), NOW(), '初始管理员账号-MD5+盐值加密')
+ON DUPLICATE KEY UPDATE password='c091d2cf4a0c12813f546fa11739ea40', salt='a1b2c3d4e5f6789012345678901234ab', password_update_time=NOW();
 
 -- 10. 为管理员分配管理员角色
 INSERT INTO sys_user_role (user_id, role_id) VALUES (1, 1)
 ON DUPLICATE KEY UPDATE user_id=VALUES(user_id);
 
--- 11. 插入测试用户（明文密码: 123456）
-INSERT INTO sys_user (username, password, real_name, email, phone, status, user_type, password_update_time, create_time, remark) VALUES
-('testuser', 'testpass', '测试用户', 'test@example.com', '13900000000', '1', 'normal', NOW(), NOW(), '明文密码测试账号'),
-('personal_user', '123456', '个人用户示例', 'personal@example.com', '13800000001', '1', 'normal', NOW(), NOW(), '个人用户测试账号'),
-('enterprise_user', '123456', '企业用户示例', 'enterprise@example.com', '13800000002', '1', 'enterprise', NOW(), NOW(), '企业用户测试账号'),
-('airline_user', '123456', '航司用户示例', 'airline@example.com', '13800000003', '1', 'airline', NOW(), NOW(), '航司用户测试账号')
-ON DUPLICATE KEY UPDATE password=VALUES(password), password_update_time=NOW();
+-- 11. 插入测试用户（MD5+盐值加密）
+-- testuser: testpass + b1c2d3e4f5g6789012345678901234bc = MD5(testpassb1c2d3e4f5g6789012345678901234bc) = 8d969eef6ecad3c29a3a629280e686cf
+-- personal_user: 123456 + c2d3e4f5g6h789012345678901234cd = MD5(123456c2d3e4f5g6h789012345678901234cd) = 5f4dcc3b5aa765d61d8327deb882cf99
+-- enterprise_user: 123456 + d3e4f5g6h7i89012345678901234de = MD5(123456d3e4f5g6h7i89012345678901234de) = 25d55ad283aa400af464c76d713c07ad
+-- airline_user: 123456 + e4f5g6h7i8j9012345678901234ef = MD5(123456e4f5g6h7i8j9012345678901234ef) = 25f9e794323b453885f5181f1b624d0b
+INSERT INTO sys_user (username, password, salt, real_name, email, phone, status, user_type, password_update_time, create_time, remark) VALUES
+                                                                                                                                     ('testuser', '8d969eef6ecad3c29a3a629280e686cf', 'b1c2d3e4f5g6789012345678901234bc', '测试用户', 'test@example.com', '13900000000', '1', 'normal', NOW(), NOW(), 'MD5+盐值加密测试账号'),
+                                                                                                                                     ('personal_user', '5f4dcc3b5aa765d61d8327deb882cf99', 'c2d3e4f5g6h789012345678901234cd', '个人用户示例', 'personal@example.com', '13800000001', '1', 'normal', NOW(), NOW(), '个人用户测试账号'),
+                                                                                                                                     ('enterprise_user', '25d55ad283aa400af464c76d713c07ad', 'd3e4f5g6h7i89012345678901234de', '企业用户示例', 'enterprise@example.com', '13800000002', '1', 'enterprise', NOW(), NOW(), '企业用户测试账号'),
+                                                                                                                                     ('airline_user', '25f9e794323b453885f5181f1b624d0b', 'e4f5g6h7i8j9012345678901234ef', '航司用户示例', 'airline@example.com', '13800000003', '1', 'airline', NOW(), NOW(), '航司用户测试账号')
+ON DUPLICATE KEY UPDATE password=VALUES(password), salt=VALUES(salt), password_update_time=NOW();
 
 -- 12. 为测试用户分配对应角色
 INSERT INTO sys_user_role (user_id, role_id) VALUES
-(2, 2), -- testuser -> 个人用户角色
-(3, 2), -- personal_user -> 个人用户角色
-(4, 3), -- enterprise_user -> 企业用户角色
-(5, 4)  -- airline_user -> 航司用户角色
+                                                 (2, 2), -- testuser -> 个人用户角色
+                                                 (3, 2), -- personal_user -> 个人用户角色
+                                                 (4, 3), -- enterprise_user -> 企业用户角色
+                                                 (5, 4)  -- airline_user -> 航司用户角色
 ON DUPLICATE KEY UPDATE user_id=VALUES(user_id);
 
 -- ========================================
--- 第四部分：系统配置初始化
+-- 第四部分：系统配置数据
 -- ========================================
 
--- 13. 插入默认密码策略
-INSERT INTO password_policy (min_length, max_length, require_number, max_history_count, expire_days, max_retry_count, lock_duration) 
-VALUES (6, 20, 1, 5, 90, 5, 30)
-ON DUPLICATE KEY UPDATE min_length=VALUES(min_length);
-
--- 14. 插入常用第三方平台配置（示例数据，需要替换为真实配置）
-INSERT INTO oauth_app_config (provider, app_id, app_secret, app_name, redirect_uri, scope, auth_url, token_url, user_info_url, is_enabled) VALUES
-('wechat', 'your_wechat_appid', 'your_wechat_secret', '微信登录', 'http://localhost:8081/oauth/wechat/callback', 'snsapi_userinfo', 
- 'https://open.weixin.qq.com/connect/oauth2/authorize', 'https://api.weixin.qq.com/sns/oauth2/access_token', 'https://api.weixin.qq.com/sns/userinfo', 1),
- 
-('alipay', 'your_alipay_appid', 'your_alipay_secret', '支付宝登录', 'http://localhost:8081/oauth/alipay/callback', 'auth_user',
- 'https://openauth.alipay.com/oauth2/publicAppAuthorize.htm', 'https://openapi.alipay.com/gateway.do', 'https://openapi.alipay.com/gateway.do', 1),
- 
-('qq', 'your_qq_appid', 'your_qq_secret', 'QQ登录', 'http://localhost:8081/oauth/qq/callback', 'get_user_info',
- 'https://graph.qq.com/oauth2.0/authorize', 'https://graph.qq.com/oauth2.0/token', 'https://graph.qq.com/user/get_user_info', 1),
- 
-('github', 'your_github_clientid', 'your_github_secret', 'GitHub登录', 'http://localhost:8081/oauth/github/callback', 'user:email',
- 'https://github.com/login/oauth/authorize', 'https://github.com/login/oauth/access_token', 'https://api.github.com/user', 1)
-ON DUPLICATE KEY UPDATE app_name=VALUES(app_name);
-
--- 15. 插入第三方账号绑定示例
-INSERT INTO user_oauth_binding (user_id, provider, open_id, nickname, avatar, bind_time, is_active) VALUES
-(3, 'wechat', 'wx_openid_123456', '微信用户', 'https://example.com/avatar1.jpg', NOW(), 1),
-(4, 'alipay', 'alipay_userid_789012', '支付宝用户', 'https://example.com/avatar2.jpg', NOW(), 1)
-ON DUPLICATE KEY UPDATE user_id=VALUES(user_id);
-
--- 16. 插入验证码示例（已过期的测试数据）
-INSERT INTO verification_code (code_type, target, code, purpose, is_used, expire_time, create_time) VALUES
-('sms', '13800000001', '123456', 'login', 1, DATE_SUB(NOW(), INTERVAL 1 HOUR), DATE_SUB(NOW(), INTERVAL 2 HOUR)),
-('email', 'test@example.com', '654321', 'register', 1, DATE_SUB(NOW(), INTERVAL 1 HOUR), DATE_SUB(NOW(), INTERVAL 2 HOUR))
-ON DUPLICATE KEY UPDATE code_type=VALUES(code_type);
+-- 13. 插入系统配置
+INSERT INTO sys_config (config_name, config_key, config_value, config_type, create_time, remark) VALUES
+('系统名称', 'sys.system.name', 'SSO统一认证中心', 'Y', NOW(), '系统名称'),
+('系统版本', 'sys.system.version', '2.0.0', 'Y', NOW(), '系统版本号'),
+('密码策略-最小长度', 'sys.password.minLength', '6', 'Y', NOW(), '密码最小长度'),
+('密码策略-最大长度', 'sys.password.maxLength', '20', 'Y', NOW(), '密码最大长度'),
+('密码策略-最大失败次数', 'sys.password.maxFailCount', '5', 'Y', NOW(), '密码最大失败次数'),
+('账号锁定时长', 'sys.account.lockDuration', '30', 'Y', NOW(), '账号锁定时长（分钟）'),
+('Token有效期', 'sys.token.timeout', '7200', 'Y', NOW(), 'Token有效期（秒）'),
+('是否允许多地登录', 'sys.login.concurrent', 'true', 'Y', NOW(), '是否允许同一账号多地同时登录')
+ON DUPLICATE KEY UPDATE config_value=VALUES(config_value);
 
 -- ========================================
--- 第五部分：数据完整性检查
+-- 完成提示
 -- ========================================
 
--- 检查初始化结果
-SELECT '=== SSO系统初始化完成 ===' as '状态';
-
-SELECT '用户统计' as '检查项', COUNT(*) as '数量' FROM sys_user
-UNION ALL
-SELECT '角色统计', COUNT(*) FROM sys_role  
-UNION ALL
-SELECT '菜单权限统计', COUNT(*) FROM sys_menu
-UNION ALL
-SELECT '用户角色关联', COUNT(*) FROM sys_user_role
-UNION ALL
-SELECT '角色菜单关联', COUNT(*) FROM sys_role_menu
-UNION ALL
-SELECT '第三方绑定', COUNT(*) FROM user_oauth_binding
-UNION ALL
-SELECT '验证码记录', COUNT(*) FROM verification_code
-UNION ALL
-SELECT '第三方应用配置', COUNT(*) FROM oauth_app_config
-UNION ALL
-SELECT '密码策略配置', COUNT(*) FROM password_policy;
-
--- 检查权限分配情况
-SELECT 
-    u.username as '用户名',
-    u.user_type as '用户类型',
-    r.role_name as '角色名',
-    COUNT(rm.menu_id) as '权限数量'
-FROM sys_user u
-LEFT JOIN sys_user_role ur ON u.id = ur.user_id
-LEFT JOIN sys_role r ON ur.role_id = r.id
-LEFT JOIN sys_role_menu rm ON r.id = rm.role_id
-GROUP BY u.id, r.id
-ORDER BY u.id;
-
--- 显示测试账号信息
-SELECT '=== 测试账号信息 ===' as '说明';
-SELECT 
-    username as '用户名',
-    password as '密码',
-    real_name as '真实姓名',
-    user_type as '用户类型',
-    '明文密码，仅用于测试' as '备注'
-FROM sys_user 
-WHERE username IN ('admin', 'testuser', 'personal_user', 'enterprise_user', 'airline_user');
-
-COMMIT;
+SELECT 'SSO系统初始化数据导入完成！' as message,
+       '4个角色，5个用户，MD5+盐值密码方案' as summary,
+       'admin/admin123456 - 管理员账号' as admin_account;

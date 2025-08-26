@@ -51,6 +51,35 @@ spring:
         max-idle: 8
         min-idle: 0
 
+  # Thymeleaf 模板引擎配置
+  thymeleaf:
+    # 模板文件路径
+    prefix: classpath:/templates/
+    # 模板文件后缀
+    suffix: .html
+    # 模板模式
+    mode: HTML
+    # 编码
+    encoding: UTF-8
+    # 是否缓存模板（开发环境建议关闭）
+    cache: false
+    # 内容类型
+    servlet:
+      content-type: text/html
+    # 是否检查模板位置
+    check-template-location: true
+    # 是否检查模板
+    check-template: true
+
+  # 静态资源配置
+  web:
+    resources:
+      # 静态资源路径
+      static-locations: classpath:/static/
+      # 缓存时间（开发环境设为0）
+      cache:
+        period: 0
+
 # MyBatis 配置
 mybatis:
   # 指定 mapper.xml 文件位置

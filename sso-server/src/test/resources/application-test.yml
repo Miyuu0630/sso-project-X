@@ -1,0 +1,44 @@
+# 测试环境配置
+spring:
+  # 数据源配置 - 使用H2内存数据库进行测试
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+    
+  # H2数据库配置
+  h2:
+    console:
+      enabled: true
+      
+  # JPA配置
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    
+# MyBatis配置
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: org.example.common.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+# 日志配置
+logging:
+  level:
+    org.example.ssoserver: DEBUG
+    org.springframework.test: DEBUG
+    org.mybatis: DEBUG
+    
+# Sa-Token配置（测试环境简化配置）
+sa-token:
+  token-name: satoken
+  timeout: 7200
+  active-timeout: 1800
+  is-concurrent: true
+  is-share: true
+  token-style: random-128
+  is-log: false

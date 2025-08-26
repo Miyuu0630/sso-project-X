@@ -16,6 +16,7 @@ import org.example.common.enums.UserType;
 import org.example.common.enums.Gender;
 import org.example.ssoserver.entity.SysUser;
 import org.example.ssoserver.mapper.SysUserMapper;
+import org.example.ssoserver.service.PasswordService;
 import org.example.ssoserver.service.SysUserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,8 +32,9 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class SysUserServiceImpl implements SysUserService {
-    
+
     private final SysUserMapper userMapper;
+    private final PasswordService passwordService;
     
     // ========================================
     // 用户认证相关
@@ -59,17 +61,49 @@ public class SysUserServiceImpl implements SysUserService {
                 return null;
             }
             
-            // 验证密码
-            if (EncryptUtil.verifyPassword(password, user.getPassword())) {
-                return user;
+            // 验证密码 - 使用MD5+盐值验证
+            if (user.getSalt() != null && !user.getSalt().isEmpty()) {
+                // 使用新的MD5+盐值验证方式
+                if (passwordService.matchesWithSalt(password, user.getPassword(), user.getSalt())) {
+                    return user;
+                }
+            } else {
+                // 兼容旧的密码验证方式（如果用户没有盐值）
+                log.warn("用户 {} 没有盐值，使用兼容模式验证密码", account);
+                if (passwordService.matches(password, user.getPassword())) {
+                    // 验证成功后，为用户生成盐值并重新加密密码
+                    updateUserPasswordWithSalt(user.getId(), password);
+                    return user;
+                }
             }
-            
+
             // 记录登录失败
             recordLoginFailure(user.getId());
             return null;
         } catch (Exception e) {
             log.error("验证用户失败: account={}", account, e);
             return null;
+        }
+    }
+
+    /**
+     * 为用户更新密码并添加盐值（用于兼容旧密码）
+     */
+    private void updateUserPasswordWithSalt(Long userId, String rawPassword) {
+        try {
+            String salt = passwordService.generateSalt();
+            String encryptedPassword = passwordService.encodePasswordWithSalt(rawPassword, salt);
+
+            SysUser updateUser = new SysUser();
+            updateUser.setId(userId);
+            updateUser.setPassword(encryptedPassword);
+            updateUser.setSalt(salt);
+            updateUser.setPasswordUpdateTime(LocalDateTime.now());
+
+            userMapper.updateById(updateUser);
+            log.info("为用户 {} 更新密码并添加盐值", userId);
+        } catch (Exception e) {
+            log.error("更新用户密码盐值失败: userId={}", userId, e);
         }
     }
     
@@ -195,7 +229,13 @@ public class SysUserServiceImpl implements SysUserService {
         try {
             // 加密密码
             if (user.getPassword() != null) {
-                user.setPassword(EncryptUtil.encryptPassword(user.getPassword()));
+                // 如果没有盐值，生成一个
+                if (user.getSalt() == null || user.getSalt().isEmpty()) {
+                    user.setSalt(passwordService.generateSalt());
+                }
+                // 使用MD5+盐值加密密码
+                String encryptedPassword = passwordService.encodePasswordWithSalt(user.getPassword(), user.getSalt());
+                user.setPassword(encryptedPassword);
             }
             
             // 设置默认值
@@ -268,8 +308,18 @@ public class SysUserServiceImpl implements SysUserService {
     @Transactional(rollbackFor = Exception.class)
     public boolean resetPassword(Long userId, String newPassword) {
         try {
-            String encryptedPassword = EncryptUtil.encryptPassword(newPassword);
-            int result = userMapper.updatePassword(userId, encryptedPassword, LocalDateTime.now());
+            // 生成新的盐值并加密密码
+            String salt = passwordService.generateSalt();
+            String encryptedPassword = passwordService.encodePasswordWithSalt(newPassword, salt);
+
+            // 更新密码和盐值
+            SysUser updateUser = new SysUser();
+            updateUser.setId(userId);
+            updateUser.setPassword(encryptedPassword);
+            updateUser.setSalt(salt);
+            updateUser.setPasswordUpdateTime(LocalDateTime.now());
+
+            int result = userMapper.updateById(updateUser);
             return result > 0;
         } catch (Exception e) {
             log.error("重置密码失败: userId={}", userId, e);
@@ -283,13 +333,44 @@ public class SysUserServiceImpl implements SysUserService {
         try {
             // 验证旧密码
             SysUser user = getUserById(userId);
-            if (user == null || !EncryptUtil.verifyPassword(oldPassword, user.getPassword())) {
+            if (user == null) {
                 throw BusinessException.passwordError();
             }
 
-            // 更新新密码
-            String encryptedPassword = EncryptUtil.encryptPassword(newPassword);
-            int result = userMapper.updatePassword(userId, encryptedPassword, LocalDateTime.now());
+            // 使用新的密码验证方式
+            boolean oldPasswordValid = false;
+            if (user.getSalt() != null && !user.getSalt().isEmpty()) {
+                oldPasswordValid = passwordService.matchesWithSalt(oldPassword, user.getPassword(), user.getSalt());
+            } else {
+                oldPasswordValid = passwordService.matches(oldPassword, user.getPassword());
+            }
+
+            if (!oldPasswordValid) {
+                throw BusinessException.passwordError();
+            }
+
+            // 验证新密码强度
+            if (!passwordService.isValidPassword(newPassword)) {
+                throw new BusinessException(ResultCode.PARAM_ERROR, "新密码不符合安全要求");
+            }
+
+            // 检查新密码是否为弱密码
+            if (passwordService.isWeakPassword(newPassword)) {
+                throw new BusinessException(ResultCode.PARAM_ERROR, "新密码过于简单，请使用更复杂的密码");
+            }
+
+            // 生成新的盐值并加密新密码
+            String newSalt = passwordService.generateSalt();
+            String encryptedPassword = passwordService.encodePasswordWithSalt(newPassword, newSalt);
+
+            // 更新密码和盐值
+            SysUser updateUser = new SysUser();
+            updateUser.setId(userId);
+            updateUser.setPassword(encryptedPassword);
+            updateUser.setSalt(newSalt);
+            updateUser.setPasswordUpdateTime(LocalDateTime.now());
+
+            int result = userMapper.updateById(updateUser);
             return result > 0;
         } catch (BusinessException e) {
             throw e;
@@ -518,4 +599,5 @@ public class SysUserServiceImpl implements SysUserService {
         UserType type = UserType.fromCode(userType);
         return type != null ? type.getName() : UserType.NORMAL.getName();
     }
+
 }

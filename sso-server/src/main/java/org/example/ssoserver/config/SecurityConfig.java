@@ -1,10 +1,16 @@
 package org.example.ssoserver.config;
 
+import lombok.RequiredArgsConstructor;
+import org.example.ssoserver.security.CustomAuthenticationProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.crypto.password.NoOpPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -14,11 +20,15 @@ import java.util.Arrays;
 
 /**
  * Spring Security配置类
- * 注意：我们使用Sa-Token进行认证，Spring Security仅用于密码编码
+ * 配置自定义认证提供者，使用 MD5 + 盐值进行密码验证
+ * 同时保持与 Sa-Token 的兼容性
  */
 @Configuration
 @EnableWebSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
+
+    private final CustomAuthenticationProvider customAuthenticationProvider;
     
 
     /**
@@ -74,5 +84,26 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
 
         return http.build();
+    }
+
+    /**
+     * 暴露 AuthenticationManager Bean
+     * 用于在 Controller 中手动进行认证
+     */
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
+    }
+
+    /**
+     * 密码编码器
+     * 由于我们使用自定义的 MD5 + 盐值加密，这里使用 NoOpPasswordEncoder
+     * 实际的密码验证在 CustomAuthenticationProvider 中进行
+     */
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        // 注意：这里使用 NoOpPasswordEncoder 是因为我们在 CustomAuthenticationProvider 中
+        // 自己处理密码验证，Spring Security 的 PasswordEncoder 不会被使用
+        return NoOpPasswordEncoder.getInstance();
     }
 }

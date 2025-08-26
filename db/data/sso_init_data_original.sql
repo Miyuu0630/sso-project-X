@@ -14,10 +14,10 @@ USE sso_db;
 
 -- 1. 插入四类用户角色
 INSERT INTO sys_role (role_name, role_key, role_sort, status, create_time, remark) VALUES
-('管理员', 'ADMIN', 1, '1', NOW(), '系统管理员，拥有所有权限，负责系统管理和用户管理'),
-('个人用户', 'PERSONAL_USER', 2, '1', NOW(), '个人用户，拥有基本功能权限，可以使用系统基础服务'),
-('企业用户', 'ENTERPRISE_USER', 3, '1', NOW(), '企业用户，拥有企业级功能权限，可以管理企业相关业务'),
-('航司用户', 'AIRLINE_USER', 4, '1', NOW(), '航空公司用户，拥有航司专用功能权限，可以管理航司业务')
+                                                                                       ('管理员', 'ADMIN', 1, '1', NOW(), '系统管理员，拥有所有权限，负责系统管理和用户管理'),
+                                                                                       ('个人用户', 'PERSONAL_USER', 2, '1', NOW(), '个人用户，拥有基本功能权限，可以使用系统基础服务'),
+                                                                                       ('企业用户', 'ENTERPRISE_USER', 3, '1', NOW(), '企业用户，拥有企业级功能权限，可以管理企业相关业务'),
+                                                                                       ('航司用户', 'AIRLINE_USER', 4, '1', NOW(), '航空公司用户，拥有航司专用功能权限，可以管理航司业务')
 ON DUPLICATE KEY UPDATE role_name=VALUES(role_name);
 
 -- 2. 插入一级菜单权限
@@ -97,19 +97,19 @@ ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
 
 -- 6. 个人用户角色权限分配（只有用户中心权限）
 INSERT INTO sys_role_menu (role_id, menu_id)
-SELECT 2, id FROM sys_menu 
+SELECT 2, id FROM sys_menu
 WHERE id IN (2, 9, 10, 11, 12, 13) -- 用户中心及其子菜单
 ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
 
 -- 7. 企业用户角色权限分配（用户中心 + 企业管理权限）
 INSERT INTO sys_role_menu (role_id, menu_id)
-SELECT 3, id FROM sys_menu 
+SELECT 3, id FROM sys_menu
 WHERE id IN (2, 3, 9, 10, 11, 12, 13, 14, 15, 16) -- 用户中心 + 企业管理
 ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
 
 -- 8. 航司用户角色权限分配（用户中心 + 航司管理权限）
 INSERT INTO sys_role_menu (role_id, menu_id)
-SELECT 4, id FROM sys_menu 
+SELECT 4, id FROM sys_menu
 WHERE id IN (2, 4, 9, 10, 11, 12, 13, 17, 18, 19) -- 用户中心 + 航司管理
 ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
 
@@ -119,7 +119,7 @@ ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
 
 -- 9. 插入初始管理员账号（明文密码: admin123456）
 INSERT INTO sys_user (username, password, real_name, email, phone, status, user_type, password_update_time, create_time, remark) VALUES
-('admin', 'admin123456', '系统管理员', 'admin@sso.com', '13800000000', '1', 'normal', NOW(), NOW(), '初始管理员账号-明文密码')
+    ('admin', 'admin123456', '系统管理员', 'admin@sso.com', '13800000000', '1', 'normal', NOW(), NOW(), '初始管理员账号-明文密码')
 ON DUPLICATE KEY UPDATE password='admin123456', password_update_time=NOW();
 
 -- 10. 为管理员分配管理员角色
@@ -128,18 +128,18 @@ ON DUPLICATE KEY UPDATE user_id=VALUES(user_id);
 
 -- 11. 插入测试用户（明文密码: 123456）
 INSERT INTO sys_user (username, password, real_name, email, phone, status, user_type, password_update_time, create_time, remark) VALUES
-('testuser', 'testpass', '测试用户', 'test@example.com', '13900000000', '1', 'normal', NOW(), NOW(), '明文密码测试账号'),
-('personal_user', '123456', '个人用户示例', 'personal@example.com', '13800000001', '1', 'normal', NOW(), NOW(), '个人用户测试账号'),
-('enterprise_user', '123456', '企业用户示例', 'enterprise@example.com', '13800000002', '1', 'enterprise', NOW(), NOW(), '企业用户测试账号'),
-('airline_user', '123456', '航司用户示例', 'airline@example.com', '13800000003', '1', 'airline', NOW(), NOW(), '航司用户测试账号')
+                                                                                                                                     ('testuser', 'testpass', '测试用户', 'test@example.com', '13900000000', '1', 'normal', NOW(), NOW(), '明文密码测试账号'),
+                                                                                                                                     ('personal_user', '123456', '个人用户示例', 'personal@example.com', '13800000001', '1', 'normal', NOW(), NOW(), '个人用户测试账号'),
+                                                                                                                                     ('enterprise_user', '123456', '企业用户示例', 'enterprise@example.com', '13800000002', '1', 'enterprise', NOW(), NOW(), '企业用户测试账号'),
+                                                                                                                                     ('airline_user', '123456', '航司用户示例', 'airline@example.com', '13800000003', '1', 'airline', NOW(), NOW(), '航司用户测试账号')
 ON DUPLICATE KEY UPDATE password=VALUES(password), password_update_time=NOW();
 
 -- 12. 为测试用户分配对应角色
 INSERT INTO sys_user_role (user_id, role_id) VALUES
-(2, 2), -- testuser -> 个人用户角色
-(3, 2), -- personal_user -> 个人用户角色
-(4, 3), -- enterprise_user -> 企业用户角色
-(5, 4)  -- airline_user -> 航司用户角色
+                                                 (2, 2), -- testuser -> 个人用户角色
+                                                 (3, 2), -- personal_user -> 个人用户角色
+                                                 (4, 3), -- enterprise_user -> 企业用户角色
+                                                 (5, 4)  -- airline_user -> 航司用户角色
 ON DUPLICATE KEY UPDATE user_id=VALUES(user_id);
 
 -- ========================================
@@ -147,35 +147,35 @@ ON DUPLICATE KEY UPDATE user_id=VALUES(user_id);
 -- ========================================
 
 -- 13. 插入默认密码策略
-INSERT INTO password_policy (min_length, max_length, require_number, max_history_count, expire_days, max_retry_count, lock_duration) 
+INSERT INTO password_policy (min_length, max_length, require_number, max_history_count, expire_days, max_retry_count, lock_duration)
 VALUES (6, 20, 1, 5, 90, 5, 30)
 ON DUPLICATE KEY UPDATE min_length=VALUES(min_length);
 
 -- 14. 插入常用第三方平台配置（示例数据，需要替换为真实配置）
 INSERT INTO oauth_app_config (provider, app_id, app_secret, app_name, redirect_uri, scope, auth_url, token_url, user_info_url, is_enabled) VALUES
-('wechat', 'your_wechat_appid', 'your_wechat_secret', '微信登录', 'http://localhost:8081/oauth/wechat/callback', 'snsapi_userinfo', 
- 'https://open.weixin.qq.com/connect/oauth2/authorize', 'https://api.weixin.qq.com/sns/oauth2/access_token', 'https://api.weixin.qq.com/sns/userinfo', 1),
- 
-('alipay', 'your_alipay_appid', 'your_alipay_secret', '支付宝登录', 'http://localhost:8081/oauth/alipay/callback', 'auth_user',
- 'https://openauth.alipay.com/oauth2/publicAppAuthorize.htm', 'https://openapi.alipay.com/gateway.do', 'https://openapi.alipay.com/gateway.do', 1),
- 
-('qq', 'your_qq_appid', 'your_qq_secret', 'QQ登录', 'http://localhost:8081/oauth/qq/callback', 'get_user_info',
- 'https://graph.qq.com/oauth2.0/authorize', 'https://graph.qq.com/oauth2.0/token', 'https://graph.qq.com/user/get_user_info', 1),
- 
-('github', 'your_github_clientid', 'your_github_secret', 'GitHub登录', 'http://localhost:8081/oauth/github/callback', 'user:email',
- 'https://github.com/login/oauth/authorize', 'https://github.com/login/oauth/access_token', 'https://api.github.com/user', 1)
+                                                                                                                                               ('wechat', 'your_wechat_appid', 'your_wechat_secret', '微信登录', 'http://localhost:8081/oauth/wechat/callback', 'snsapi_userinfo',
+                                                                                                                                                'https://open.weixin.qq.com/connect/oauth2/authorize', 'https://api.weixin.qq.com/sns/oauth2/access_token', 'https://api.weixin.qq.com/sns/userinfo', 1),
+
+                                                                                                                                               ('alipay', 'your_alipay_appid', 'your_alipay_secret', '支付宝登录', 'http://localhost:8081/oauth/alipay/callback', 'auth_user',
+                                                                                                                                                'https://openauth.alipay.com/oauth2/publicAppAuthorize.htm', 'https://openapi.alipay.com/gateway.do', 'https://openapi.alipay.com/gateway.do', 1),
+
+                                                                                                                                               ('qq', 'your_qq_appid', 'your_qq_secret', 'QQ登录', 'http://localhost:8081/oauth/qq/callback', 'get_user_info',
+                                                                                                                                                'https://graph.qq.com/oauth2.0/authorize', 'https://graph.qq.com/oauth2.0/token', 'https://graph.qq.com/user/get_user_info', 1),
+
+                                                                                                                                               ('github', 'your_github_clientid', 'your_github_secret', 'GitHub登录', 'http://localhost:8081/oauth/github/callback', 'user:email',
+                                                                                                                                                'https://github.com/login/oauth/authorize', 'https://github.com/login/oauth/access_token', 'https://api.github.com/user', 1)
 ON DUPLICATE KEY UPDATE app_name=VALUES(app_name);
 
 -- 15. 插入第三方账号绑定示例
 INSERT INTO user_oauth_binding (user_id, provider, open_id, nickname, avatar, bind_time, is_active) VALUES
-(3, 'wechat', 'wx_openid_123456', '微信用户', 'https://example.com/avatar1.jpg', NOW(), 1),
-(4, 'alipay', 'alipay_userid_789012', '支付宝用户', 'https://example.com/avatar2.jpg', NOW(), 1)
+                                                                                                        (3, 'wechat', 'wx_openid_123456', '微信用户', 'https://example.com/avatar1.jpg', NOW(), 1),
+                                                                                                        (4, 'alipay', 'alipay_userid_789012', '支付宝用户', 'https://example.com/avatar2.jpg', NOW(), 1)
 ON DUPLICATE KEY UPDATE user_id=VALUES(user_id);
 
 -- 16. 插入验证码示例（已过期的测试数据）
 INSERT INTO verification_code (code_type, target, code, purpose, is_used, expire_time, create_time) VALUES
-('sms', '13800000001', '123456', 'login', 1, DATE_SUB(NOW(), INTERVAL 1 HOUR), DATE_SUB(NOW(), INTERVAL 2 HOUR)),
-('email', 'test@example.com', '654321', 'register', 1, DATE_SUB(NOW(), INTERVAL 1 HOUR), DATE_SUB(NOW(), INTERVAL 2 HOUR))
+                                                                                                        ('sms', '13800000001', '123456', 'login', 1, DATE_SUB(NOW(), INTERVAL 1 HOUR), DATE_SUB(NOW(), INTERVAL 2 HOUR)),
+                                                                                                        ('email', 'test@example.com', '654321', 'register', 1, DATE_SUB(NOW(), INTERVAL 1 HOUR), DATE_SUB(NOW(), INTERVAL 2 HOUR))
 ON DUPLICATE KEY UPDATE code_type=VALUES(code_type);
 
 -- ========================================
@@ -187,7 +187,7 @@ SELECT '=== SSO系统初始化完成 ===' as '状态';
 
 SELECT '用户统计' as '检查项', COUNT(*) as '数量' FROM sys_user
 UNION ALL
-SELECT '角色统计', COUNT(*) FROM sys_role  
+SELECT '角色统计', COUNT(*) FROM sys_role
 UNION ALL
 SELECT '菜单权限统计', COUNT(*) FROM sys_menu
 UNION ALL
@@ -204,27 +204,27 @@ UNION ALL
 SELECT '密码策略配置', COUNT(*) FROM password_policy;
 
 -- 检查权限分配情况
-SELECT 
+SELECT
     u.username as '用户名',
     u.user_type as '用户类型',
     r.role_name as '角色名',
     COUNT(rm.menu_id) as '权限数量'
 FROM sys_user u
-LEFT JOIN sys_user_role ur ON u.id = ur.user_id
-LEFT JOIN sys_role r ON ur.role_id = r.id
-LEFT JOIN sys_role_menu rm ON r.id = rm.role_id
+         LEFT JOIN sys_user_role ur ON u.id = ur.user_id
+         LEFT JOIN sys_role r ON ur.role_id = r.id
+         LEFT JOIN sys_role_menu rm ON r.id = rm.role_id
 GROUP BY u.id, r.id
 ORDER BY u.id;
 
 -- 显示测试账号信息
 SELECT '=== 测试账号信息 ===' as '说明';
-SELECT 
+SELECT
     username as '用户名',
     password as '密码',
     real_name as '真实姓名',
     user_type as '用户类型',
     '明文密码，仅用于测试' as '备注'
-FROM sys_user 
+FROM sys_user
 WHERE username IN ('admin', 'testuser', 'personal_user', 'enterprise_user', 'airline_user');
 
 COMMIT;

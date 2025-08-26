@@ -1,22 +1,19 @@
 package org.example.ssoserver.config;
 
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 /**
  * 密码编码配置类
- * 仅使用Spring Security Crypto进行密码编码，不使用Spring Security的认证和授权功能
- * 认证和授权完全由Sa-Token处理
+ *
+ * 注意：此配置类已废弃，密码编码功能已迁移到 SecurityConfig 中
+ * 现在使用 MD5 + 盐值方案，不再使用 BCrypt
+ *
+ * @deprecated 使用 SecurityConfig 中的 passwordEncoder 配置
  */
 @Configuration
 public class PasswordConfig {
 
-    /**
-     * 密码编码器
-     */
-    @Bean
-    public BCryptPasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+    // 此类已废弃，所有密码编码配置已迁移到 SecurityConfig
+    // 保留此类仅为了避免删除时可能的依赖问题
+    // 实际的 passwordEncoder Bean 在 SecurityConfig 中定义
 }

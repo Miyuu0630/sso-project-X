@@ -11,14 +11,22 @@ import org.example.common.result.ResultCode;
 import org.example.common.dto.LoginRequest;
 import org.example.common.dto.LoginResponse;
 import org.example.common.enums.LoginType;
+import org.example.ssoserver.dto.RegisterRequest;
+import org.example.ssoserver.dto.RegisterResponse;
 import org.example.ssoserver.service.AuthService;
+import org.example.ssoserver.service.PasswordService;
 import org.example.ssoserver.service.SysUserService;
+import org.example.ssoserver.service.UserRegisterService;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.ModelAndView;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.io.IOException;
 import java.util.HashMap;
@@ -37,6 +45,8 @@ public class SsoController {
 
     private final AuthService authService;
     private final SysUserService userService;
+    private final UserRegisterService userRegisterService;
+    private final PasswordService passwordService;
     
     // ========================================
     // SSO认证核心接口
@@ -622,5 +632,194 @@ public class SsoController {
             "</div>" +
             "</body>" +
             "</html>";
+    }
+
+    // ========================================
+    // 用户注册相关接口
+    // ========================================
+
+    // 注意：注册页面的显示已在 SsoPageController 中处理
+    // 删除了重复的 /sso/register 映射以避免冲突
+
+    /**
+     * 用户注册接口
+     */
+    @PostMapping("/register")
+    @Operation(summary = "用户注册", description = "处理用户注册请求")
+    public ApiResponse<RegisterResponse> register(@Valid @RequestBody RegisterRequest registerRequest,
+                                                 HttpServletRequest request) {
+        String clientIp = getClientIp(request);
+        log.info("用户注册请求: username={}, phone={}, email={}, clientIp={}",
+                registerRequest.getUsername(), registerRequest.getPhone(),
+                registerRequest.getEmail(), clientIp);
+
+        try {
+            // 执行注册
+            RegisterResponse response = userRegisterService.register(registerRequest);
+
+            log.info("用户注册成功: userId={}, username={}", response.getUserId(), response.getUsername());
+            return ApiResponse.success(response);
+
+        } catch (BusinessException e) {
+            log.warn("用户注册失败: {}", e.getMessage());
+            return ApiResponse.error(e.getMessage());
+        } catch (Exception e) {
+            log.error("用户注册异常: username={}", registerRequest.getUsername(), e);
+            return ApiResponse.error("注册失败，请稍后重试");
+        }
+    }
+
+    /**
+     * 检查用户名是否可用
+     */
+    @GetMapping("/check-username")
+    @Operation(summary = "检查用户名", description = "检查用户名是否已存在")
+    public ApiResponse<Boolean> checkUsername(@RequestParam String username) {
+        try {
+            boolean exists = userRegisterService.isUsernameExists(username);
+            return ApiResponse.success(!exists); // 返回是否可用（不存在即可用）
+        } catch (Exception e) {
+            log.error("检查用户名失败: username={}", username, e);
+            return ApiResponse.error("检查失败");
+        }
+    }
+
+    /**
+     * 检查手机号是否可用
+     */
+    @GetMapping("/check-phone")
+    @Operation(summary = "检查手机号", description = "检查手机号是否已注册")
+    public ApiResponse<Boolean> checkPhone(@RequestParam String phone) {
+        try {
+            boolean exists = userRegisterService.isPhoneExists(phone);
+            return ApiResponse.success(!exists); // 返回是否可用（不存在即可用）
+        } catch (Exception e) {
+            log.error("检查手机号失败: phone={}", phone, e);
+            return ApiResponse.error("检查失败");
+        }
+    }
+
+    /**
+     * 检查邮箱是否可用
+     */
+    @GetMapping("/check-email")
+    @Operation(summary = "检查邮箱", description = "检查邮箱是否已注册")
+    public ApiResponse<Boolean> checkEmail(@RequestParam String email) {
+        try {
+            boolean exists = userRegisterService.isEmailExists(email);
+            return ApiResponse.success(!exists); // 返回是否可用（不存在即可用）
+        } catch (Exception e) {
+            log.error("检查邮箱失败: email={}", email, e);
+            return ApiResponse.error("检查失败");
+        }
+    }
+
+    /**
+     * 检查密码强度
+     */
+    @PostMapping("/check-password-strength")
+    @Operation(summary = "检查密码强度", description = "检查密码强度和安全性")
+    public ApiResponse<Map<String, Object>> checkPasswordStrength(@RequestBody Map<String, String> request) {
+        try {
+            String password = request.get("password");
+            if (password == null || password.trim().isEmpty()) {
+                return ApiResponse.error("密码不能为空");
+            }
+
+            // 使用密码服务检查强度
+            int strength = passwordService.checkPasswordStrength(password);
+            boolean isValid = passwordService.isValidPassword(password);
+            boolean isWeak = passwordService.isWeakPassword(password);
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("strength", strength); // 0-弱，1-中，2-强
+            result.put("isValid", isValid);
+            result.put("isWeak", isWeak);
+
+            // 提供强度描述
+            String strengthText;
+            switch (strength) {
+                case 0:
+                    strengthText = "弱";
+                    break;
+                case 1:
+                    strengthText = "中";
+                    break;
+                case 2:
+                    strengthText = "强";
+                    break;
+                default:
+                    strengthText = "未知";
+            }
+            result.put("strengthText", strengthText);
+
+            // 提供改进建议
+            if (!isValid || isWeak) {
+                result.put("suggestions", getPasswordSuggestions(password));
+            }
+
+            return ApiResponse.success(result);
+        } catch (Exception e) {
+            log.error("检查密码强度失败", e);
+            return ApiResponse.error("检查失败");
+        }
+    }
+
+    // ========================================
+    // 注册页面相关私有方法
+    // ========================================
+
+
+
+    /**
+     * 获取简单的注册页面HTML（备用）
+     */
+    private String getSimpleRegisterPageHtml() {
+        return "<!DOCTYPE html>" +
+                "<html lang='zh-CN'>" +
+                "<head>" +
+                "<meta charset='UTF-8'>" +
+                "<title>用户注册</title>" +
+                "<style>body{font-family:Arial,sans-serif;max-width:400px;margin:50px auto;padding:20px;}</style>" +
+                "</head>" +
+                "<body>" +
+                "<h2>用户注册</h2>" +
+                "<p>注册页面加载失败，请刷新页面重试。</p>" +
+                "<a href='/sso/auth'>返回登录</a>" +
+                "</body>" +
+                "</html>";
+    }
+
+    /**
+     * 获取密码改进建议
+     */
+    private java.util.List<String> getPasswordSuggestions(String password) {
+        java.util.List<String> suggestions = new java.util.ArrayList<>();
+
+        if (password.length() < 8) {
+            suggestions.add("密码长度至少8位");
+        }
+
+        if (!password.matches(".*[a-z].*")) {
+            suggestions.add("包含小写字母");
+        }
+
+        if (!password.matches(".*[A-Z].*")) {
+            suggestions.add("包含大写字母");
+        }
+
+        if (!password.matches(".*\\d.*")) {
+            suggestions.add("包含数字");
+        }
+
+        if (!password.matches(".*[@$!%*?&].*")) {
+            suggestions.add("包含特殊字符(@$!%*?&)");
+        }
+
+        if (passwordService.isWeakPassword(password)) {
+            suggestions.add("避免使用常见密码或简单模式");
+        }
+
+        return suggestions;
     }
 }

@@ -36,7 +36,8 @@ public class SaTokenConfig implements WebMvcConfigurer {
                          "/auth/check-phone", "/auth/check-email", "/auth/send-sms-code",
                          "/auth/send-email-code", "/auth/captcha", "/auth/verify-captcha",
                          "/auth/wechat/**", "/auth/alipay/**", "/sso/**", "/test-**",
-                         "/error", "/favicon.ico", "/static/**")
+                         "/login", "/register", "/login.html", "/register.html",
+                         "/api/fix/**", "/error", "/favicon.ico", "/static/**", "/css/**", "/js/**", "/images/**")
                 .check(r -> StpUtil.checkLogin());
         })).addPathPatterns("/**");
     }
