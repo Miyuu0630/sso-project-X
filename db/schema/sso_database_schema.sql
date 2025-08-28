@@ -31,7 +31,7 @@ CREATE TABLE sys_user (
                           gender TINYINT DEFAULT 0 COMMENT '性别：0-未知，1-男，2-女',
                           birthday DATE COMMENT '生日',
                           status CHAR(1) DEFAULT '1' COMMENT '状态：0-禁用，1-正常',
-                          user_type VARCHAR(20) DEFAULT 'normal' COMMENT '用户类型：normal-普通用户，enterprise-企业用户，airline-航司用户',
+                          user_type VARCHAR(20) DEFAULT 'normal' COMMENT '用户类型：admin-管理员，normal-普通用户，enterprise-企业用户，airline-航司用户',
                           last_login_time DATETIME COMMENT '最后登录时间',
                           last_login_ip VARCHAR(50) COMMENT '最后登录IP',
                           login_count INT DEFAULT 0 COMMENT '登录次数',

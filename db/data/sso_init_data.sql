@@ -123,8 +123,8 @@ ON DUPLICATE KEY UPDATE role_id=VALUES(role_id);
 -- 盐值: a1b2c3d4e5f6789012345678901234ab
 -- MD5(admin123456 + a1b2c3d4e5f6789012345678901234ab) = c091d2cf4a0c12813f546fa11739ea40
 INSERT INTO sys_user (username, password, salt, real_name, email, phone, status, user_type, password_update_time, create_time, remark) VALUES
-    ('admin', 'c091d2cf4a0c12813f546fa11739ea40', 'a1b2c3d4e5f6789012345678901234ab', '系统管理员', 'admin@sso.com', '13800000000', '1', 'normal', NOW(), NOW(), '初始管理员账号-MD5+盐值加密')
-ON DUPLICATE KEY UPDATE password='c091d2cf4a0c12813f546fa11739ea40', salt='a1b2c3d4e5f6789012345678901234ab', password_update_time=NOW();
+    ('admin', 'c091d2cf4a0c12813f546fa11739ea40', 'a1b2c3d4e5f6789012345678901234ab', '系统管理员', 'admin@sso.com', '13800000000', '1', 'admin', NOW(), NOW(), '初始管理员账号-MD5+盐值加密')
+ON DUPLICATE KEY UPDATE password='c091d2cf4a0c12813f546fa11739ea40', salt='a1b2c3d4e5f6789012345678901234ab', user_type='admin', password_update_time=NOW();
 
 -- 10. 为管理员分配管理员角色
 INSERT INTO sys_user_role (user_id, role_id) VALUES (1, 1)
