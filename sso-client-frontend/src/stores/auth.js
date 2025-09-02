@@ -311,7 +311,8 @@ export const useAuthStore = defineStore('auth', () => {
         return !!(userInfo.value && userInfo.value.id)
       } catch (error) {
         console.error('获取用户信息失败:', error)
-        clearAuth()
+        // 修复：不立即清除认证信息，给用户一个机会
+        console.log('获取用户信息失败，但不立即清除认证信息')
         return false
       }
     }
@@ -333,13 +334,14 @@ export const useAuthStore = defineStore('auth', () => {
         }
         return true
       } else {
-        console.log('后端验证失败，清除认证信息')
-        clearAuth()
+        console.log('后端验证失败，但不立即清除认证信息')
+        // 修复：不立即清除认证信息，给用户一个机会
         return false
       }
     } catch (error) {
       console.error('后端验证失败:', error)
-      clearAuth()
+      // 修复：不立即清除认证信息，给用户一个机会
+      console.log('后端验证异常，但不立即清除认证信息')
       return false
     }
   }

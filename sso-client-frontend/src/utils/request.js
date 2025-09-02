@@ -39,11 +39,10 @@ request.interceptors.response.use(
     
     // 处理业务错误
     if (data.code && data.code !== 200) {
-      // 401未授权，跳转登录
+      // 401未授权，但不要立即跳转登录
       if (data.code === 401) {
-        const authStore = useAuthStore()
-        authStore.clearAuth()
-        authStore.redirectToLogin()
+        console.warn('业务错误401: 未授权，但不立即跳转登录')
+        // 修复：不立即跳转登录，让调用方决定如何处理
         return Promise.reject(new Error('未授权'))
       }
       
@@ -73,11 +72,10 @@ request.interceptors.response.use(
     
     switch (status) {
       case 401:
-        // 未授权，清除本地认证信息并跳转登录
-        const authStore = useAuthStore()
-        authStore.clearAuth()
-        authStore.redirectToLogin()
+        // 修复：401错误不立即跳转登录，让调用方决定
+        console.warn('HTTP 401: 未授权，但不立即跳转登录')
         ElMessage.error('登录已过期，请重新登录')
+        // 不调用 authStore.redirectToLogin()，让调用方决定
         break
       case 403:
         ElMessage.error('权限不足')

@@ -66,7 +66,7 @@ sa-token:
         # 是否打开模式三
         is-http: true
         # 接口调用秘钥（需要与SSO-Server保持一致）
-        secretkey: kQwIOrYvnXsVDhwOh2tPzI9at3cKs6VuOqQyHEz0c1Q
+        secretkey: SSO-CLIENT-SECRET-KEY
         # SSO-Server端主机地址
         server-url: http://localhost:8081
 

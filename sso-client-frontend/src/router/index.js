@@ -486,105 +486,103 @@ router.beforeEach(async (to, from, next) => {
 
   // 检查是否需要登录（排除根路径和回调页面，因为上面已经处理了）
   if (to.meta.requiresAuth && to.path !== '/' && to.path !== '/callback') {
-    // 统一使用用户信息检查登录状态
-    const hasValidLogin = authStore.userInfo && authStore.userInfo.id
+    // 修复：减少过于激进的认证检查
+    // 优先检查本地Token和用户信息，避免频繁的后端请求
+    const localToken = authStore.token
+    const hasLocalUserInfo = authStore.userInfo && authStore.userInfo.id
 
-    if (!hasValidLogin) {
-      console.log('用户未登录，重定向到 SSO 登录')
-      authStore.redirectToLogin(to.fullPath)
-      return
-    }
-
-    // 如果用户信息不完整，尝试重新获取
-    if (!authStore.userInfo || !authStore.userInfo.roles || authStore.userInfo.roles.length === 0) {
-      console.log('用户信息不完整，正在加载...')
-      try {
-        await authStore.fetchUserData()
-      } catch (error) {
-        console.error('获取用户信息失败:', error)
-        authStore.clearAuth()
-        authStore.redirectToLogin(to.fullPath)
-        return
+    // 如果有本地Token或用户信息，允许访问
+    if (localToken || hasLocalUserInfo) {
+      console.log('本地认证信息存在，允许访问')
+      
+      // 如果用户信息不完整，尝试重新获取（但不阻止访问）
+      if (!authStore.userInfo || !authStore.userInfo.roles || authStore.userInfo.roles.length === 0) {
+        console.log('用户信息不完整，异步加载中...')
+        // 异步获取用户信息，不阻塞路由
+        authStore.fetchUserData().catch(error => {
+          console.error('异步获取用户信息失败:', error)
+          // 不立即清除认证信息，给用户一个机会
+        })
       }
-    }
-
-    // 确保用户信息已完全加载
-    if (!authStore.userInfo || !authStore.userInfo.id) {
-      console.log('用户信息加载失败，重新登录')
-      authStore.clearAuth()
-      authStore.redirectToLogin(to.fullPath)
+      
+      next()
       return
     }
 
-    // 检查角色权限
-    if (to.meta.requiredRoles && to.meta.requiredRoles.length > 0) {
-      const userRoles = authStore.userInfo?.roles || []
-      console.log('检查角色权限:', {
-        requiredRoles: to.meta.requiredRoles,
-        userRoles: userRoles,
+    // 只有在完全没有认证信息时才跳转登录
+    console.log('完全没有认证信息，重定向到 SSO 登录')
+    authStore.redirectToLogin(to.fullPath)
+    return
+  }
+
+  // 检查角色权限
+  if (to.meta.requiredRoles && to.meta.requiredRoles.length > 0) {
+    const userRoles = authStore.userInfo?.roles || []
+    console.log('检查角色权限:', {
+      requiredRoles: to.meta.requiredRoles,
+      userRoles: userRoles,
+      currentPath: to.path
+    })
+    
+    const hasRequiredRole = to.meta.requiredRoles.some(role => userRoles.includes(role))
+
+    if (!hasRequiredRole) {
+      console.log('用户权限不足，跳转到对应角色仪表板')
+      const primaryRole = getUserPrimaryRole(userRoles)
+      const dashboardPath = roleDashboardMap[primaryRole] || '/'
+      
+      console.log('权限检查结果:', {
+        primaryRole,
+        dashboardPath,
         currentPath: to.path
       })
       
-      const hasRequiredRole = to.meta.requiredRoles.some(role => userRoles.includes(role))
-
-      if (!hasRequiredRole) {
-        console.log('用户权限不足，跳转到对应角色仪表板')
-        const primaryRole = getUserPrimaryRole(userRoles)
-        const dashboardPath = roleDashboardMap[primaryRole] || '/'
-        
-        console.log('权限检查结果:', {
-          primaryRole,
-          dashboardPath,
-          currentPath: to.path
-        })
-        
-        // 简化逻辑：如果用户要访问的是他们角色对应的仪表板，直接允许
-        if (to.path === dashboardPath) {
-          console.log('用户访问对应角色仪表板，允许访问')
-          next()
-          return
-        }
-        
-        // 否则重定向到对应仪表板
-        console.log(`重定向到: ${dashboardPath}`)
-        next(dashboardPath)
+      // 简化逻辑：如果用户要访问的是他们角色对应的仪表板，直接允许
+      if (to.path === dashboardPath) {
+        console.log('用户访问对应角色仪表板，允许访问')
+        next()
         return
-      } else {
-        console.log('角色权限检查通过')
       }
+      
+      // 否则重定向到对应仪表板
+      console.log(`重定向到: ${dashboardPath}`)
+      next(dashboardPath)
+      return
+    } else {
+      console.log('角色权限检查通过')
     }
+  }
 
-    // 检查具体权限
-    if (to.meta.requiredPermission) {
-      console.log('检查具体权限:', to.meta.requiredPermission)
-      const hasPermission = await authStore.checkPermission(to.meta.requiredPermission)
-      if (!hasPermission) {
-        console.log('用户权限不足，跳转到对应角色仪表板')
-        const userRoles = authStore.userInfo?.roles || []
-        const primaryRole = getUserPrimaryRole(userRoles)
-        const dashboardPath = roleDashboardMap[primaryRole] || '/'
-        
-        console.log('权限检查结果:', {
-          requiredPermission: to.meta.requiredPermission,
-          primaryRole,
-          dashboardPath,
-          currentPath: to.path
-        })
-        
-        // 简化逻辑：如果用户要访问的是他们角色对应的仪表板，直接允许
-        if (to.path === dashboardPath) {
-          console.log('用户访问对应角色仪表板，允许访问')
-          next()
-          return
-        }
-        
-        // 否则重定向到对应仪表板
-        console.log(`重定向到: ${dashboardPath}`)
-        next(dashboardPath)
+  // 检查具体权限
+  if (to.meta.requiredPermission) {
+    console.log('检查具体权限:', to.meta.requiredPermission)
+    const hasPermission = await authStore.checkPermission(to.meta.requiredPermission)
+    if (!hasPermission) {
+      console.log('用户权限不足，跳转到对应角色仪表板')
+      const userRoles = authStore.userInfo?.roles || []
+      const primaryRole = getUserPrimaryRole(userRoles)
+      const dashboardPath = roleDashboardMap[primaryRole] || '/'
+      
+      console.log('权限检查结果:', {
+        requiredPermission: to.meta.requiredPermission,
+        primaryRole,
+        dashboardPath,
+        currentPath: to.path
+      })
+      
+      // 简化逻辑：如果用户要访问的是他们角色对应的仪表板，直接允许
+      if (to.path === dashboardPath) {
+        console.log('用户访问对应角色仪表板，允许访问')
+        next()
         return
-      } else {
-        console.log('具体权限检查通过')
       }
+      
+      // 否则重定向到对应仪表板
+      console.log(`重定向到: ${dashboardPath}`)
+      next(dashboardPath)
+      return
+    } else {
+      console.log('具体权限检查通过')
     }
   }
 
