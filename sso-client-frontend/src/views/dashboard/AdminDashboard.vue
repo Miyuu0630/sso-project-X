@@ -1,164 +1,152 @@
 <template>
   <div class="admin-dashboard">
-    <!-- 系统概览头部 -->
-    <div class="dashboard-header">
-      <div class="header-content">
-        <div class="header-title">
-          <h1>系统管理控制台</h1>
-          <p>欢迎回来，系统管理员！今天是 {{ currentDate }}</p>
-        </div>
-        <div class="header-actions">
-          <el-button type="primary" @click="navigateTo('/system/user')">
-            <el-icon><User /></el-icon>
-            用户管理
-          </el-button>
-          <el-button type="success" @click="navigateTo('/monitor/online')">
-            <el-icon><Monitor /></el-icon>
-            系统监控
-          </el-button>
-          <el-button type="warning" @click="navigateTo('/system/role')">
-            <el-icon><Setting /></el-icon>
-            角色管理
-          </el-button>
-        </div>
-      </div>
+    <!-- 页面标题 -->
+    <div class="page-header">
+      <h1 class="page-title">系统管理控制台</h1>
+      <p class="page-subtitle">欢迎回来，系统管理员！今天是 {{ currentDate }}</p>
     </div>
 
-    <!-- 系统统计卡片 -->
-    <div class="stats-section">
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-icon users">
-            <el-icon size="32"><User /></el-icon>
-          </div>
+    <!-- 页面内容 -->
+    <div class="page-content">
+
+    <!-- 系统概览卡片 -->
+    <el-row :gutter="20" class="stats-row">
+      <el-col :span="6">
+        <el-card class="stat-card">
           <div class="stat-content">
-            <div class="stat-number">{{ systemStats.totalUsers }}</div>
-            <div class="stat-label">总用户数</div>
-            <div class="stat-trend positive">
-              <el-icon><ArrowUp /></el-icon>
-              +{{ systemStats.newUsers }} 本月新增
+            <div class="stat-icon users">
+              <el-icon><User /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-number">{{ systemStats.totalUsers }}</div>
+              <div class="stat-label">总用户数</div>
             </div>
           </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon online">
-            <el-icon size="32"><Monitor /></el-icon>
-          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card class="stat-card">
           <div class="stat-content">
-            <div class="stat-number">{{ systemStats.onlineUsers }}</div>
-            <div class="stat-label">在线用户</div>
-            <div class="stat-trend">
-              <el-icon><Clock /></el-icon>
-              实时更新
+            <div class="stat-icon online">
+              <el-icon><Monitor /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-number">{{ systemStats.onlineUsers }}</div>
+              <div class="stat-label">在线用户</div>
             </div>
           </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon performance">
-            <el-icon size="32"><TrendCharts /></el-icon>
-          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card class="stat-card">
           <div class="stat-content">
-            <div class="stat-number">{{ systemStats.systemLoad }}%</div>
-            <div class="stat-label">系统负载</div>
-            <div class="stat-trend" :class="systemStats.systemLoad > 80 ? 'warning' : 'normal'">
-              <el-icon><InfoFilled /></el-icon>
-              {{ systemStats.systemLoad > 80 ? '较高' : '正常' }}
+            <div class="stat-icon performance">
+              <el-icon><TrendCharts /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-number">{{ systemStats.systemLoad }}%</div>
+              <div class="stat-label">系统负载</div>
             </div>
           </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon security">
-            <el-icon size="32"><Lock /></el-icon>
-          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card class="stat-card">
           <div class="stat-content">
-            <div class="stat-number">{{ systemStats.securityScore }}</div>
-            <div class="stat-label">安全评分</div>
-            <div class="stat-trend" :class="systemStats.securityScore > 80 ? 'positive' : 'warning'">
-              <el-icon><Check /></el-icon>
-              {{ systemStats.securityScore > 80 ? '优秀' : '需关注' }}
+            <div class="stat-icon security">
+              <el-icon><Lock /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-number">{{ systemStats.securityScore }}</div>
+              <div class="stat-label">安全评分</div>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
+        </el-card>
+      </el-col>
+    </el-row>
 
-    <!-- 主要内容区域 -->
-    <div class="main-content">
-      <!-- 左侧快速操作 -->
-      <div class="quick-actions">
-        <h3 class="section-title">快速操作</h3>
-        <div class="actions-grid">
-          <div class="action-card" @click="navigateTo('/system/user')">
-            <div class="action-icon">
-              <el-icon size="24"><User /></el-icon>
+    <!-- 功能模块 -->
+    <el-row :gutter="20" class="modules-row">
+      <el-col :span="16">
+        <el-card class="module-card">
+          <template #header>
+            <div class="card-header">
+              <span>系统管理</span>
             </div>
-            <div class="action-content">
-              <h4>用户管理</h4>
-              <p>管理系统用户、权限分配</p>
+          </template>
+          <el-row :gutter="16">
+            <el-col :span="8">
+              <div class="module-item" @click="navigateTo('/system/user')">
+                <div class="module-icon">
+                  <el-icon><User /></el-icon>
+                </div>
+                <div class="module-content">
+                  <h4>用户管理</h4>
+                  <p>管理系统用户、权限分配</p>
+                </div>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="module-item" @click="navigateTo('/system/role')">
+                <div class="module-icon">
+                  <el-icon><Setting /></el-icon>
+                </div>
+                <div class="module-content">
+                  <h4>角色管理</h4>
+                  <p>配置用户角色和权限</p>
+                </div>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="module-item" @click="navigateTo('/system/menu')">
+                <div class="module-icon">
+                  <el-icon><Menu /></el-icon>
+                </div>
+                <div class="module-content">
+                  <h4>菜单管理</h4>
+                  <p>配置系统菜单结构</p>
+                </div>
+              </div>
+            </el-col>
+          </el-row>
+        </el-card>
+      </el-col>
+      
+      <el-col :span="8">
+        <el-card class="module-card">
+          <template #header>
+            <div class="card-header">
+              <span>系统监控</span>
+            </div>
+          </template>
+          <div class="monitor-list">
+            <div class="monitor-item" @click="navigateTo('/monitor/online')">
+              <el-icon><Monitor /></el-icon>
+              <span>在线用户</span>
+            </div>
+            <div class="monitor-item" @click="navigateTo('/monitor/server')">
+              <el-icon><Cpu /></el-icon>
+              <span>服务监控</span>
+            </div>
+            <div class="monitor-item" @click="navigateTo('/monitor/loginlog')">
+              <el-icon><Document /></el-icon>
+              <span>登录日志</span>
             </div>
           </div>
+        </el-card>
+      </el-col>
+    </el-row>
 
-          <div class="action-card" @click="navigateTo('/system/role')">
-            <div class="action-icon">
-              <el-icon size="24"><Setting /></el-icon>
+    <!-- 系统信息 -->
+    <el-row :gutter="20" class="info-row">
+      <el-col :span="12">
+        <el-card class="info-card">
+          <template #header>
+            <div class="card-header">
+              <span>服务器状态</span>
             </div>
-            <div class="action-content">
-              <h4>角色管理</h4>
-              <p>配置用户角色和权限</p>
-            </div>
-          </div>
-
-          <div class="action-card" @click="navigateTo('/system/menu')">
-            <div class="action-icon">
-              <el-icon size="24"><Menu /></el-icon>
-            </div>
-            <div class="action-content">
-              <h4>菜单管理</h4>
-              <p>配置系统菜单结构</p>
-            </div>
-          </div>
-
-          <div class="action-card" @click="navigateTo('/monitor/online')">
-            <div class="action-icon">
-              <el-icon size="24"><Monitor /></el-icon>
-            </div>
-            <div class="action-content">
-              <h4>在线监控</h4>
-              <p>查看在线用户状态</p>
-            </div>
-          </div>
-
-          <div class="action-card" @click="navigateTo('/monitor/server')">
-            <div class="action-icon">
-              <el-icon size="24"><Cpu /></el-icon>
-            </div>
-            <div class="action-content">
-              <h4>服务监控</h4>
-              <p>监控系统服务状态</p>
-            </div>
-          </div>
-
-          <div class="action-card" @click="navigateTo('/monitor/loginlog')">
-            <div class="action-icon">
-              <el-icon size="24"><Document /></el-icon>
-            </div>
-            <div class="action-content">
-              <h4>登录日志</h4>
-              <p>查看用户登录记录</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 右侧系统信息 -->
-      <div class="system-info">
-        <h3 class="section-title">系统信息</h3>
-        <div class="info-cards">
-          <div class="info-card">
-            <h4>服务器状态</h4>
+          </template>
+          <div class="info-list">
             <div class="info-item">
               <span class="label">CPU使用率:</span>
               <span class="value">{{ serverInfo.cpuUsage }}%</span>
@@ -176,9 +164,17 @@
               <span class="value" :class="serverInfo.networkStatus">{{ serverInfo.networkStatusText }}</span>
             </div>
           </div>
-
-          <div class="info-card">
-            <h4>应用信息</h4>
+        </el-card>
+      </el-col>
+      
+      <el-col :span="12">
+        <el-card class="info-card">
+          <template #header>
+            <div class="card-header">
+              <span>应用信息</span>
+            </div>
+          </template>
+          <div class="info-list">
             <div class="info-item">
               <span class="label">版本:</span>
               <span class="value">{{ appInfo.version }}</span>
@@ -196,48 +192,9 @@
               <span class="value success">运行正常</span>
             </div>
           </div>
-        </div>
-
-        <!-- 最近系统事件 -->
-        <div class="recent-events">
-          <h4>最近系统事件</h4>
-          <div class="event-list">
-            <div v-for="event in recentEvents" :key="event.id" class="event-item" :class="event.level">
-              <div class="event-icon">
-                <el-icon v-if="event.level === 'error'"><CircleCloseFilled /></el-icon>
-                <el-icon v-else-if="event.level === 'warning'"><WarningFilled /></el-icon>
-                <el-icon v-else><InfoFilled /></el-icon>
-              </div>
-              <div class="event-content">
-                <div class="event-title">{{ event.title }}</div>
-                <div class="event-time">{{ event.time }}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 底部图表区域 -->
-    <div class="charts-section">
-      <h3 class="section-title">系统监控图表</h3>
-      <div class="charts-grid">
-        <div class="chart-card">
-          <h4>用户活跃度趋势</h4>
-          <div class="chart-placeholder">
-            <el-icon size="48" color="#909399"><TrendCharts /></el-icon>
-            <p>用户活跃度趋势图表</p>
-          </div>
-        </div>
-        
-        <div class="chart-card">
-          <h4>系统性能监控</h4>
-          <div class="chart-placeholder">
-            <el-icon size="48" color="#909399"><Monitor /></el-icon>
-            <p>系统性能监控图表</p>
-          </div>
-        </div>
-      </div>
+        </el-card>
+      </el-col>
+    </el-row>
     </div>
   </div>
 </template>
@@ -335,324 +292,221 @@ onMounted(() => {
 
 <style scoped>
 .admin-dashboard {
-  padding: 24px;
-  background: #f5f7fa;
-  min-height: 100vh;
+  padding: 0;
+  background: #f0f2f5;
+  min-height: calc(100vh - 60px);
 }
 
-/* 仪表板头部 */
-.dashboard-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 16px;
-  padding: 32px;
-  margin-bottom: 24px;
-  color: white;
+/* 页面标题 */
+.page-header {
+  padding: 20px 20px 0 20px;
+  margin-bottom: 20px;
 }
 
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+/* 页面内容 */
+.page-content {
+  padding: 0 20px 20px 20px;
 }
 
-.header-title h1 {
-  margin: 0 0 8px 0;
-  font-size: 28px;
+.page-title {
+  font-size: 24px;
   font-weight: 600;
+  color: #303133;
+  margin: 0 0 8px 0;
 }
 
-.header-title p {
+.page-subtitle {
+  color: #606266;
   margin: 0;
-  opacity: 0.9;
-  font-size: 16px;
+  font-size: 14px;
 }
 
-.header-actions {
-  display: flex;
-  gap: 16px;
-}
-
-/* 统计卡片 */
-.stats-section {
-  margin-bottom: 24px;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
+/* 统计卡片行 */
+.stats-row {
+  margin-bottom: 20px;
 }
 
 .stat-card {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s, box-shadow 0.2s;
+  border: 1px solid #e4e7ed;
 }
 
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+.stat-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
 .stat-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 16px;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
+  font-size: 20px;
 }
 
-.stat-icon.users { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-.stat-icon.online { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-.stat-icon.performance { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-.stat-icon.security { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+.stat-icon.users { background: #409eff; }
+.stat-icon.online { background: #67c23a; }
+.stat-icon.performance { background: #e6a23c; }
+.stat-icon.security { background: #f56c6c; }
 
-.stat-content {
+.stat-info {
   flex: 1;
 }
 
 .stat-number {
-  font-size: 32px;
-  font-weight: 700;
-  color: #2c3e50;
+  font-size: 24px;
+  font-weight: 600;
+  color: #303133;
   margin-bottom: 4px;
 }
 
 .stat-label {
-  color: #7f8c8d;
+  color: #909399;
   font-size: 14px;
-  margin-bottom: 8px;
 }
 
-.stat-trend {
+/* 功能模块行 */
+.modules-row {
+  margin-bottom: 20px;
+}
+
+.module-card {
+  border: 1px solid #e4e7ed;
+}
+
+.card-header {
+  font-weight: 600;
+  color: #303133;
+}
+
+.module-item {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #7f8c8d;
-}
-
-.stat-trend.positive { color: #67c23a; }
-.stat-trend.warning { color: #e6a23c; }
-.stat-trend.normal { color: #409eff; }
-
-/* 主要内容区域 */
-.main-content {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 24px;
-  margin-bottom: 24px;
-}
-
-.section-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #2c3e50;
-  margin: 0 0 20px 0;
-  padding-bottom: 12px;
-  border-bottom: 2px solid #e1e8ed;
-}
-
-/* 快速操作 */
-.quick-actions {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-}
-
-.actions-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-}
-
-.action-card {
-  padding: 20px;
-  border: 1px solid #e1e8ed;
-  border-radius: 8px;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
-  text-align: center;
+  margin-bottom: 12px;
 }
 
-.action-card:hover {
-  border-color: #667eea;
-  background: #f8f9ff;
-  transform: translateY(-2px);
+.module-item:hover {
+  border-color: #409eff;
+  background: #f0f9ff;
 }
 
-.action-icon {
-  width: 48px;
-  height: 48px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
+.module-item:last-child {
+  margin-bottom: 0;
+}
+
+.module-icon {
+  width: 40px;
+  height: 40px;
+  background: #409eff;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  margin: 0 auto 16px;
+  font-size: 18px;
 }
 
-.action-content h4 {
-  margin: 0 0 8px 0;
-  color: #2c3e50;
+.module-content h4 {
+  margin: 0 0 4px 0;
+  color: #303133;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.module-content p {
+  margin: 0;
+  color: #909399;
+  font-size: 13px;
+}
+
+/* 监控列表 */
+.monitor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.monitor-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.monitor-item:hover {
+  border-color: #409eff;
+  background: #f0f9ff;
+}
+
+.monitor-item .el-icon {
+  color: #409eff;
   font-size: 16px;
 }
 
-.action-content p {
-  margin: 0;
-  color: #7f8c8d;
+.monitor-item span {
+  color: #303133;
   font-size: 14px;
 }
 
-/* 系统信息 */
-.system-info {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-}
-
-.info-cards {
-  margin-bottom: 24px;
+/* 信息卡片行 */
+.info-row {
+  margin-bottom: 20px;
 }
 
 .info-card {
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 16px;
+  border: 1px solid #e4e7ed;
 }
 
-.info-card h4 {
-  margin: 0 0 12px 0;
-  color: #2c3e50;
-  font-size: 14px;
-  font-weight: 600;
+.info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .info-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
-  font-size: 14px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.info-item:last-child {
+  border-bottom: none;
 }
 
 .info-item .label {
-  color: #7f8c8d;
+  color: #606266;
+  font-size: 14px;
 }
 
 .info-item .value {
+  color: #303133;
+  font-size: 14px;
   font-weight: 500;
-  color: #2c3e50;
 }
 
 .value.success { color: #67c23a; }
 .value.warning { color: #e6a23c; }
 .value.error { color: #f56c6c; }
 
-/* 最近事件 */
-.recent-events h4 {
-  margin: 0 0 16px 0;
-  color: #2c3e50;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.event-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.event-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 8px;
-  background: #f8f9fa;
-}
-
-.event-item.info { border-left: 4px solid #409eff; }
-.event-item.warning { border-left: 4px solid #e6a23c; }
-.event-item.error { border-left: 4px solid #f56c6c; }
-
-.event-icon {
-  color: #7f8c8d;
-}
-
-.event-content {
-  flex: 1;
-}
-
-.event-title {
-  font-size: 14px;
-  color: #2c3e50;
-  margin-bottom: 4px;
-}
-
-.event-time {
-  font-size: 12px;
-  color: #7f8c8d;
-}
-
-/* 图表区域 */
-.charts-section {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-}
-
-.charts-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 24px;
-}
-
-.chart-card {
-  border: 1px solid #e1e8ed;
-  border-radius: 8px;
-  padding: 20px;
-}
-
-.chart-card h4 {
-  margin: 0 0 16px 0;
-  color: #2c3e50;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.chart-placeholder {
-  height: 200px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: #909399;
-  background: #f8f9fa;
-  border-radius: 8px;
-}
-
-.chart-placeholder p {
-  margin: 16px 0 0 0;
-  font-size: 14px;
-}
-
 /* 响应式设计 */
 @media (max-width: 1200px) {
-  .main-content {
-    grid-template-columns: 1fr;
+  .modules-row .el-col:first-child {
+    margin-bottom: 20px;
   }
 }
 
@@ -661,31 +515,24 @@ onMounted(() => {
     padding: 16px;
   }
   
-  .dashboard-header {
-    padding: 24px;
+  .stats-row .el-col {
+    margin-bottom: 16px;
   }
   
-  .header-content {
-    flex-direction: column;
-    gap: 20px;
-    text-align: center;
+  .modules-row .el-col {
+    margin-bottom: 16px;
   }
   
-  .header-actions {
-    flex-wrap: wrap;
-    justify-content: center;
+  .info-row .el-col {
+    margin-bottom: 16px;
   }
   
-  .stats-grid {
-    grid-template-columns: 1fr;
+  .page-title {
+    font-size: 20px;
   }
   
-  .actions-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .charts-grid {
-    grid-template-columns: 1fr;
+  .stat-number {
+    font-size: 20px;
   }
 }
 </style>

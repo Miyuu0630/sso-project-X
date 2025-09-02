@@ -22,12 +22,12 @@ public class RolePermissionServiceImpl implements RolePermissionService {
     @Autowired
     private UserInfoService userInfoService;
 
-    // 角色层级定义（数字越小权限越高）
+    // 角色层级定义（数字越小权限越高，与数据库role_sort字段对应）
     private static final Map<String, Integer> ROLE_HIERARCHY = Map.of(
-        "ADMIN", 1,
-        "AIRLINE_USER", 2,
-        "ENTERPRISE_USER", 3,
-        "PERSONAL_USER", 4
+        "ADMIN", 1,           // 管理员 - 最高权限
+        "PERSONAL_USER", 2,   // 个人用户
+        "ENTERPRISE_USER", 3, // 企业用户  
+        "AIRLINE_USER", 4     // 航司用户
     );
 
     // 角色对应的仪表板路径

@@ -81,8 +81,8 @@ const getUserPrimaryRole = (userRoles) => {
     return null
   }
 
-  // 角色优先级：管理员 > 航司用户 > 企业用户 > 个人用户
-  const roleHierarchy = ['ADMIN', 'AIRLINE_USER', 'ENTERPRISE_USER', 'PERSONAL_USER']
+  // 角色优先级：管理员 > 个人用户 > 企业用户 > 航司用户（与数据库role_sort字段对应）
+  const roleHierarchy = ['ADMIN', 'PERSONAL_USER', 'ENTERPRISE_USER', 'AIRLINE_USER']
 
   for (const role of roleHierarchy) {
     if (userRoles.includes(role)) {

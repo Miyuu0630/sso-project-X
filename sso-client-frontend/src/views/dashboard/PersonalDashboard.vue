@@ -1,178 +1,152 @@
 <template>
   <div class="personal-dashboard">
-    <!-- 个人欢迎头部 -->
-    <div class="dashboard-header">
-      <div class="header-content">
-        <div class="user-info">
-          <div class="avatar-section">
-            <div class="avatar">
-              <el-icon size="32"><User /></el-icon>
-            </div>
-            <div class="user-details">
-              <h1>欢迎回来，{{ userInfo.nickname }}！</h1>
-              <p>今天是 {{ currentDate }}，祝您使用愉快！</p>
-              <div class="user-status">
-                <span class="status-badge online">
-                  <el-icon><CircleCheck /></el-icon>
-                  在线
-                </span>
-                <span class="last-login">上次登录：{{ userInfo.lastLoginTime }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="header-actions">
-          <el-button type="primary" @click="navigateTo('/user/profile')">
-            <el-icon><Edit /></el-icon>
-            编辑资料
-          </el-button>
-          <el-button type="success" @click="navigateTo('/user/security')">
-            <el-icon><Lock /></el-icon>
-            安全设置
-          </el-button>
-          <el-button type="warning" @click="navigateTo('/user/device')">
-            <el-icon><Monitor /></el-icon>
-            设备管理
-          </el-button>
-        </div>
-      </div>
+    <!-- 页面标题 -->
+    <div class="page-header">
+      <h1 class="page-title">个人中心</h1>
+      <p class="page-subtitle">欢迎回来，{{ userInfo.nickname }}！今天是 {{ currentDate }}</p>
     </div>
+
+    <!-- 页面内容 -->
+    <div class="page-content">
 
     <!-- 个人统计卡片 -->
-    <div class="stats-section">
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-icon profile">
-            <el-icon size="32"><User /></el-icon>
-          </div>
+    <el-row :gutter="20" class="stats-row">
+      <el-col :span="6">
+        <el-card class="stat-card">
           <div class="stat-content">
-            <div class="stat-number">{{ personalStats.profileComplete }}%</div>
-            <div class="stat-label">资料完整度</div>
-            <div class="stat-trend" :class="personalStats.profileComplete > 80 ? 'positive' : 'warning'">
-              <el-icon><InfoFilled /></el-icon>
-              {{ personalStats.profileComplete > 80 ? '完整' : '需完善' }}
+            <div class="stat-icon profile">
+              <el-icon><User /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-number">{{ personalStats.profileComplete }}%</div>
+              <div class="stat-label">资料完整度</div>
             </div>
           </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon activity">
-            <el-icon size="32"><Clock /></el-icon>
-          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card class="stat-card">
           <div class="stat-content">
-            <div class="stat-number">{{ personalStats.loginDays }}</div>
-            <div class="stat-label">连续登录天数</div>
-            <div class="stat-trend positive">
-              <el-icon><TrendCharts /></el-icon>
-              +{{ personalStats.streakDays }} 天
+            <div class="stat-icon activity">
+              <el-icon><Clock /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-number">{{ personalStats.loginDays }}</div>
+              <div class="stat-label">连续登录天数</div>
             </div>
           </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon security">
-            <el-icon size="32"><Lock /></el-icon>
-          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card class="stat-card">
           <div class="stat-content">
-            <div class="stat-number">{{ personalStats.securityScore }}</div>
-            <div class="stat-label">安全评分</div>
-            <div class="stat-trend" :class="personalStats.securityScore > 80 ? 'positive' : 'warning'">
-              <el-icon><Check /></el-icon>
-              {{ personalStats.securityScore > 80 ? '优秀' : '需加强' }}
+            <div class="stat-icon security">
+              <el-icon><Lock /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-number">{{ personalStats.securityScore }}</div>
+              <div class="stat-label">安全评分</div>
             </div>
           </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon points">
-            <el-icon size="32"><Star /></el-icon>
-          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card class="stat-card">
           <div class="stat-content">
-            <div class="stat-number">{{ personalStats.points }}</div>
-            <div class="stat-label">积分余额</div>
-            <div class="stat-trend positive">
-              <el-icon><ArrowUp /></el-icon>
-              +{{ personalStats.pointsEarned }} 本月获得
+            <div class="stat-icon points">
+              <el-icon><Star /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-number">{{ personalStats.points }}</div>
+              <div class="stat-label">积分余额</div>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
+        </el-card>
+      </el-col>
+    </el-row>
 
-    <!-- 主要内容区域 -->
-    <div class="main-content">
-      <!-- 左侧快捷功能 -->
-      <div class="quick-functions">
-        <h3 class="section-title">快捷功能</h3>
-        <div class="functions-grid">
-          <div class="function-card" @click="navigateTo('/user/profile')">
-            <div class="function-icon">
-              <el-icon size="24"><User /></el-icon>
+    <!-- 功能模块 -->
+    <el-row :gutter="20" class="modules-row">
+      <el-col :span="16">
+        <el-card class="module-card">
+          <template #header>
+            <div class="card-header">
+              <span>个人功能</span>
             </div>
-            <div class="function-content">
-              <h4>个人资料</h4>
-              <p>查看和编辑个人信息</p>
+          </template>
+          <el-row :gutter="16">
+            <el-col :span="8">
+              <div class="module-item" @click="navigateTo('/user/profile')">
+                <div class="module-icon">
+                  <el-icon><User /></el-icon>
+                </div>
+                <div class="module-content">
+                  <h4>个人资料</h4>
+                  <p>查看和编辑个人信息</p>
+                </div>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="module-item" @click="navigateTo('/user/security')">
+                <div class="module-icon">
+                  <el-icon><Lock /></el-icon>
+                </div>
+                <div class="module-content">
+                  <h4>安全设置</h4>
+                  <p>密码修改、安全验证</p>
+                </div>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="module-item" @click="navigateTo('/user/oauth')">
+                <div class="module-icon">
+                  <el-icon><Link /></el-icon>
+                </div>
+                <div class="module-content">
+                  <h4>第三方绑定</h4>
+                  <p>绑定微信、QQ等账号</p>
+                </div>
+              </div>
+            </el-col>
+          </el-row>
+        </el-card>
+      </el-col>
+      
+      <el-col :span="8">
+        <el-card class="module-card">
+          <template #header>
+            <div class="card-header">
+              <span>账户管理</span>
+            </div>
+          </template>
+          <div class="monitor-list">
+            <div class="monitor-item" @click="navigateTo('/user/device')">
+              <el-icon><Monitor /></el-icon>
+              <span>设备管理</span>
+            </div>
+            <div class="monitor-item" @click="navigateTo('/user/loginlog')">
+              <el-icon><Document /></el-icon>
+              <span>登录记录</span>
+            </div>
+            <div class="monitor-item" @click="navigateTo('/user/notification')">
+              <el-icon><Bell /></el-icon>
+              <span>消息通知</span>
             </div>
           </div>
+        </el-card>
+      </el-col>
+    </el-row>
 
-          <div class="function-card" @click="navigateTo('/user/security')">
-            <div class="function-icon">
-              <el-icon size="24"><Lock /></el-icon>
+    <!-- 个人信息 -->
+    <el-row :gutter="20" class="info-row">
+      <el-col :span="12">
+        <el-card class="info-card">
+          <template #header>
+            <div class="card-header">
+              <span>个人信息</span>
             </div>
-            <div class="function-content">
-              <h4>安全设置</h4>
-              <p>密码修改、安全验证</p>
-            </div>
-          </div>
-
-          <div class="function-card" @click="navigateTo('/user/oauth')">
-            <div class="function-icon">
-              <el-icon size="24"><Link /></el-icon>
-            </div>
-            <div class="function-content">
-              <h4>第三方绑定</h4>
-              <p>绑定微信、QQ等账号</p>
-            </div>
-          </div>
-
-          <div class="function-card" @click="navigateTo('/user/device')">
-            <div class="function-icon">
-              <el-icon size="24"><Monitor /></el-icon>
-            </div>
-            <div class="function-content">
-              <h4>设备管理</h4>
-              <p>管理登录设备</p>
-            </div>
-          </div>
-
-          <div class="function-card" @click="navigateTo('/user/loginlog')">
-            <div class="function-icon">
-              <el-icon size="24"><Document /></el-icon>
-            </div>
-            <div class="function-content">
-              <h4>登录记录</h4>
-              <p>查看登录历史</p>
-            </div>
-          </div>
-
-          <div class="function-card" @click="navigateTo('/user/notification')">
-            <div class="function-icon">
-              <el-icon size="24"><Bell /></el-icon>
-            </div>
-            <div class="function-content">
-              <h4>消息通知</h4>
-              <p>系统消息和提醒</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 右侧个人信息和活动 -->
-      <div class="personal-sidebar">
-        <!-- 个人信息卡片 -->
-        <div class="info-card">
-          <h3 class="section-title">个人信息</h3>
-          <div class="info-content">
+          </template>
+          <div class="info-list">
             <div class="info-item">
               <span class="label">用户名:</span>
               <span class="value">{{ userInfo.username }}</span>
@@ -198,11 +172,16 @@
               <span class="value level-{{ userInfo.level }}">{{ userInfo.levelText }}</span>
             </div>
           </div>
-        </div>
-
-        <!-- 最近活动 -->
-        <div class="recent-activities">
-          <h4>最近活动</h4>
+        </el-card>
+      </el-col>
+      
+      <el-col :span="12">
+        <el-card class="info-card">
+          <template #header>
+            <div class="card-header">
+              <span>最近活动</span>
+            </div>
+          </template>
           <div class="activity-list">
             <div v-for="activity in recentActivities" :key="activity.id" class="activity-item">
               <div class="activity-icon" :class="activity.type">
@@ -217,49 +196,9 @@
               </div>
             </div>
           </div>
-        </div>
-
-        <!-- 系统通知 -->
-        <div class="system-notifications">
-          <h4>系统通知</h4>
-          <div class="notification-list">
-            <div v-for="notification in systemNotifications" :key="notification.id" class="notification-item" :class="notification.level">
-              <div class="notification-icon">
-                <el-icon v-if="notification.level === 'info'"><InfoFilled /></el-icon>
-                <el-icon v-else-if="notification.level === 'warning'"><WarningFilled /></el-icon>
-                <el-icon v-else><Bell /></el-icon>
-              </div>
-              <div class="notification-content">
-                <div class="notification-title">{{ notification.title }}</div>
-                <div class="notification-message">{{ notification.message }}</div>
-                <div class="notification-time">{{ notification.time }}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 底部个人数据图表 -->
-    <div class="charts-section">
-      <h3 class="section-title">个人数据统计</h3>
-      <div class="charts-grid">
-        <div class="chart-card">
-          <h4>登录活跃度</h4>
-          <div class="chart-placeholder">
-            <el-icon size="48" color="#909399"><TrendCharts /></el-icon>
-            <p>登录活跃度趋势图表</p>
-          </div>
-        </div>
-        
-        <div class="chart-card">
-          <h4>积分获取记录</h4>
-          <div class="chart-placeholder">
-            <el-icon size="48" color="#909399"><Star /></el-icon>
-            <p>积分获取记录图表</p>
-          </div>
-        </div>
-      </div>
+        </el-card>
+      </el-col>
+    </el-row>
     </div>
   </div>
 </template>
@@ -379,246 +318,185 @@ onMounted(() => {
 
 <style scoped>
 .personal-dashboard {
-  padding: 24px;
-  background: #f5f7fa;
-  min-height: 100vh;
+  padding: 0;
+  background: #f0f2f5;
+  min-height: calc(100vh - 60px);
 }
 
-/* 仪表板头部 */
-.dashboard-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 16px;
-  padding: 32px;
-  margin-bottom: 24px;
-  color: white;
+/* 页面标题 */
+.page-header {
+  padding: 20px 20px 0 20px;
+  margin-bottom: 20px;
 }
 
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+/* 页面内容 */
+.page-content {
+  padding: 0 20px 20px 20px;
 }
 
-.user-info {
-  flex: 1;
-}
-
-.avatar-section {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.avatar {
-  width: 80px;
-  height: 80px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  border: 3px solid rgba(255, 255, 255, 0.3);
-}
-
-.user-details h1 {
-  margin: 0 0 8px 0;
-  font-size: 28px;
+.page-title {
+  font-size: 24px;
   font-weight: 600;
+  color: #303133;
+  margin: 0 0 8px 0;
 }
 
-.user-details p {
-  margin: 0 0 16px 0;
-  opacity: 0.9;
-  font-size: 16px;
-}
-
-.user-status {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.status-badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 20px;
+.page-subtitle {
+  color: #606266;
+  margin: 0;
   font-size: 14px;
-  font-weight: 500;
 }
 
-.status-badge.online {
-  background: rgba(103, 194, 58, 0.2);
-  color: #67c23a;
-}
-
-.last-login {
-  font-size: 14px;
-  opacity: 0.8;
-}
-
-.header-actions {
-  display: flex;
-  gap: 16px;
-}
-
-/* 统计卡片 */
-.stats-section {
-  margin-bottom: 24px;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
+/* 统计卡片行 */
+.stats-row {
+  margin-bottom: 20px;
 }
 
 .stat-card {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s, box-shadow 0.2s;
+  border: 1px solid #e4e7ed;
 }
 
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+.stat-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
 .stat-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 16px;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
+  font-size: 20px;
 }
 
-.stat-icon.profile { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-.stat-icon.activity { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-.stat-icon.security { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-.stat-icon.points { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+.stat-icon.profile { background: #409eff; }
+.stat-icon.activity { background: #67c23a; }
+.stat-icon.security { background: #e6a23c; }
+.stat-icon.points { background: #f56c6c; }
 
-.stat-content {
+.stat-info {
   flex: 1;
 }
 
 .stat-number {
-  font-size: 32px;
-  font-weight: 700;
-  color: #2c3e50;
+  font-size: 24px;
+  font-weight: 600;
+  color: #303133;
   margin-bottom: 4px;
 }
 
 .stat-label {
-  color: #7f8c8d;
+  color: #909399;
   font-size: 14px;
-  margin-bottom: 8px;
 }
 
-.stat-trend {
+/* 功能模块行 */
+.modules-row {
+  margin-bottom: 20px;
+}
+
+.module-card {
+  border: 1px solid #e4e7ed;
+}
+
+.card-header {
+  font-weight: 600;
+  color: #303133;
+}
+
+.module-item {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #7f8c8d;
-}
-
-.stat-trend.positive { color: #67c23a; }
-.stat-trend.warning { color: #e6a23c; }
-
-/* 主要内容区域 */
-.main-content {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 24px;
-  margin-bottom: 24px;
-}
-
-.section-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #2c3e50;
-  margin: 0 0 20px 0;
-  padding-bottom: 12px;
-  border-bottom: 2px solid #e1e8ed;
-}
-
-/* 快捷功能 */
-.quick-functions {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-}
-
-.functions-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-}
-
-.function-card {
-  padding: 20px;
-  border: 1px solid #e1e8ed;
-  border-radius: 8px;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
-  text-align: center;
+  margin-bottom: 12px;
 }
 
-.function-card:hover {
-  border-color: #667eea;
-  background: #f8f9ff;
-  transform: translateY(-2px);
+.module-item:hover {
+  border-color: #409eff;
+  background: #f0f9ff;
 }
 
-.function-icon {
-  width: 48px;
-  height: 48px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
+.module-item:last-child {
+  margin-bottom: 0;
+}
+
+.module-icon {
+  width: 40px;
+  height: 40px;
+  background: #409eff;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  margin: 0 auto 16px;
+  font-size: 18px;
 }
 
-.function-content h4 {
-  margin: 0 0 8px 0;
-  color: #2c3e50;
+.module-content h4 {
+  margin: 0 0 4px 0;
+  color: #303133;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.module-content p {
+  margin: 0;
+  color: #909399;
+  font-size: 13px;
+}
+
+/* 监控列表 */
+.monitor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.monitor-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.monitor-item:hover {
+  border-color: #409eff;
+  background: #f0f9ff;
+}
+
+.monitor-item .el-icon {
+  color: #409eff;
   font-size: 16px;
 }
 
-.function-content p {
-  margin: 0;
-  color: #7f8c8d;
+.monitor-item span {
+  color: #303133;
   font-size: 14px;
 }
 
-/* 个人信息侧边栏 */
-.personal-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+/* 信息卡片行 */
+.info-row {
+  margin-bottom: 20px;
 }
 
 .info-card {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e4e7ed;
 }
 
-.info-content {
+.info-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -630,7 +508,6 @@ onMounted(() => {
   align-items: center;
   padding: 8px 0;
   border-bottom: 1px solid #f0f0f0;
-  font-size: 14px;
 }
 
 .info-item:last-child {
@@ -638,12 +515,13 @@ onMounted(() => {
 }
 
 .info-item .label {
-  color: #7f8c8d;
-  font-weight: 500;
+  color: #606266;
+  font-size: 14px;
 }
 
 .info-item .value {
-  color: #2c3e50;
+  color: #303133;
+  font-size: 14px;
   font-weight: 500;
 }
 
@@ -651,21 +529,7 @@ onMounted(() => {
 .level-silver { color: #95a5a6; }
 .level-bronze { color: #e67e22; }
 
-/* 最近活动 */
-.recent-activities {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-}
-
-.recent-activities h4 {
-  margin: 0 0 16px 0;
-  color: #2c3e50;
-  font-size: 16px;
-  font-weight: 600;
-}
-
+/* 活动列表 */
 .activity-list {
   display: flex;
   flex-direction: column;
@@ -677,14 +541,14 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
   padding: 12px;
-  border-radius: 8px;
+  border-radius: 6px;
   background: #f8f9fa;
 }
 
 .activity-icon {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -703,122 +567,19 @@ onMounted(() => {
 
 .activity-title {
   font-size: 14px;
-  color: #2c3e50;
+  color: #303133;
   margin-bottom: 4px;
 }
 
 .activity-time {
   font-size: 12px;
-  color: #7f8c8d;
-}
-
-/* 系统通知 */
-.system-notifications {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-}
-
-.system-notifications h4 {
-  margin: 0 0 16px 0;
-  color: #2c3e50;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.notification-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.notification-item {
-  padding: 12px;
-  border-radius: 8px;
-  background: #f8f9fa;
-  border-left: 4px solid #409eff;
-}
-
-.notification-item.warning {
-  border-left-color: #e6a23c;
-}
-
-.notification-item.info {
-  border-left-color: #409eff;
-}
-
-.notification-icon {
-  color: #7f8c8d;
-  margin-bottom: 8px;
-}
-
-.notification-title {
-  font-size: 14px;
-  color: #2c3e50;
-  font-weight: 500;
-  margin-bottom: 4px;
-}
-
-.notification-message {
-  font-size: 13px;
-  color: #7f8c8d;
-  margin-bottom: 8px;
-  line-height: 1.4;
-}
-
-.notification-time {
-  font-size: 12px;
-  color: #bdc3c7;
-}
-
-/* 图表区域 */
-.charts-section {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-}
-
-.charts-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 24px;
-}
-
-.chart-card {
-  border: 1px solid #e1e8ed;
-  border-radius: 8px;
-  padding: 20px;
-}
-
-.chart-card h4 {
-  margin: 0 0 16px 0;
-  color: #2c3e50;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.chart-placeholder {
-  height: 200px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
   color: #909399;
-  background: #f8f9fa;
-  border-radius: 8px;
-}
-
-.chart-placeholder p {
-  margin: 16px 0 0 0;
-  font-size: 14px;
 }
 
 /* 响应式设计 */
 @media (max-width: 1200px) {
-  .main-content {
-    grid-template-columns: 1fr;
+  .modules-row .el-col:first-child {
+    margin-bottom: 20px;
   }
 }
 
@@ -827,36 +588,24 @@ onMounted(() => {
     padding: 16px;
   }
   
-  .dashboard-header {
-    padding: 24px;
+  .stats-row .el-col {
+    margin-bottom: 16px;
   }
   
-  .header-content {
-    flex-direction: column;
-    gap: 20px;
-    text-align: center;
+  .modules-row .el-col {
+    margin-bottom: 16px;
   }
   
-  .avatar-section {
-    flex-direction: column;
-    text-align: center;
+  .info-row .el-col {
+    margin-bottom: 16px;
   }
   
-  .header-actions {
-    flex-wrap: wrap;
-    justify-content: center;
+  .page-title {
+    font-size: 20px;
   }
   
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .functions-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .charts-grid {
-    grid-template-columns: 1fr;
+  .stat-number {
+    font-size: 20px;
   }
 }
 </style>

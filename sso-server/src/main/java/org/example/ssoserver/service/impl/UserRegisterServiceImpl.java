@@ -184,16 +184,18 @@ public class UserRegisterServiceImpl implements UserRegisterService {
      * 获取默认角色ID
      */
     private Long getDefaultRoleId(String userType) {
-        // 这里可以根据实际业务需求配置默认角色
+        // 根据用户类型分配对应的角色ID
         switch (userType) {
             case "normal":
-                return 4L; // 个人用户角色
+                return 2L; // 个人用户角色 (ID=2, PERSONAL_USER)
             case "enterprise":
-                return 3L; // 企业用户角色
+                return 3L; // 企业用户角色 (ID=3, ENTERPRISE_USER)
             case "airline":
-                return 2L; // 航司用户角色
+                return 4L; // 航司用户角色 (ID=4, AIRLINE_USER)
+            case "admin":
+                return 1L; // 管理员角色 (ID=1, ADMIN)
             default:
-                return 4L; // 默认个人用户角色
+                return 2L; // 默认个人用户角色
         }
     }
 

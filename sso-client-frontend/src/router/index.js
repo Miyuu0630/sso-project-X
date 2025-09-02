@@ -313,6 +313,15 @@ const routes = [
     }
   },
   {
+    path: '/error',
+    name: 'Error',
+    component: () => import('../views/Error.vue'),
+    meta: {
+      requiresAuth: false,
+      title: '错误页面'
+    }
+  },
+  {
     path: '/404',
     name: 'NotFound',
     component: () => import('../views/404.vue'),
@@ -340,9 +349,9 @@ const roleDashboardMap = {
   'AIRLINE_USER': '/dashboard/airline'
 }
 
-// 获取用户主要角色
+// 获取用户主要角色（按权限优先级排序，与数据库role_sort字段对应）
 const getUserPrimaryRole = (userRoles) => {
-  const roleHierarchy = ['ADMIN', 'AIRLINE_USER', 'ENTERPRISE_USER', 'PERSONAL_USER']
+  const roleHierarchy = ['ADMIN', 'PERSONAL_USER', 'ENTERPRISE_USER', 'AIRLINE_USER']
   for (const role of roleHierarchy) {
     if (userRoles.includes(role)) {
       return role

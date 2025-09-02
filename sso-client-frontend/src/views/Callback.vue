@@ -227,9 +227,9 @@ const goHome = () => {
   router.push('/')
 }
 
-// 获取主要角色
+// 获取主要角色（按权限优先级排序，与数据库role_sort字段对应）
 const getPrimaryRole = (userRoles) => {
-  const roleHierarchy = ['ADMIN', 'AIRLINE_USER', 'ENTERPRISE_USER', 'PERSONAL_USER']
+  const roleHierarchy = ['ADMIN', 'PERSONAL_USER', 'ENTERPRISE_USER', 'AIRLINE_USER']
   for (const role of roleHierarchy) {
     if (userRoles.includes(role)) {
       return role

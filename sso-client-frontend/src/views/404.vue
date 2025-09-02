@@ -49,7 +49,7 @@ const goBack = () => {
 }
 
 const goProfile = () => {
-  router.push('/profile')
+  router.push('/user/profile')
 }
 
 const goDashboard = () => {
