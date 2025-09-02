@@ -276,7 +276,7 @@
         <div id="successMessage" class="success-message" style="display: none;"></div>
 
         <!-- 登录表单 -->
-        <form class="login-form" id="loginForm" th:action="@{/auth/login}" method="post">
+        <form class="login-form" id="loginForm">
             <!-- 隐藏字段 -->
             <input type="hidden" name="redirect" th:value="${redirect}">
             <input type="hidden" name="clientId" th:value="${clientId}">
@@ -324,7 +324,7 @@
 
         <!-- 页脚链接 -->
         <div class="form-footer">
-            <a href="/register">还没有账号？立即注册</a>
+            <a href="/sso/register">还没有账号？立即注册</a>
             <span style="margin: 0 8px;">|</span>
             <a href="/forgot-password">忘记密码？</a>
         </div>
@@ -420,7 +420,7 @@
                 }
 
                 // 发送登录请求
-                const response = await fetch('/auth/login', {
+                const response = await fetch('/api/auth/login', {
                     method: 'POST',
                     body: formData
                 });

@@ -152,34 +152,46 @@ public class PasswordServiceImpl implements PasswordService {
     @Override
     public boolean isWeakPassword(String password) {
         if (StrUtil.isBlank(password)) {
+            log.debug("密码为空，判定为弱密码");
             return true;
         }
 
-        // 检查是否在弱密码列表中
+        log.debug("检查密码强度: password={}", password);
+
+        // 检查是否在弱密码列表中（只检查完全匹配，不检查包含关系）
         String lowerPassword = password.toLowerCase();
         for (String weakPassword : WEAK_PASSWORDS) {
-            if (lowerPassword.equals(weakPassword) || 
-                lowerPassword.contains(weakPassword) ||
-                weakPassword.contains(lowerPassword)) {
+            if (lowerPassword.equals(weakPassword)) {
+                log.debug("密码在弱密码列表中: {}", weakPassword);
                 return true;
             }
         }
 
+        // 如果密码包含字母和数字，就不认为是弱密码
+        if (password.matches("^(?=.*[a-zA-Z])(?=.*\\d).+$")) {
+            log.debug("密码包含字母和数字，判定为强密码");
+            return false;
+        }
+
         // 检查是否为纯数字、纯字母等简单模式
         if (WEAK_PATTERN.matcher(password).matches()) {
+            log.debug("密码为纯数字或纯字母，判定为弱密码");
             return true;
         }
 
         // 检查是否为重复字符
         if (isRepeatingPattern(password)) {
+            log.debug("密码为重复字符模式，判定为弱密码");
             return true;
         }
 
         // 检查是否为连续字符
         if (isSequentialPattern(password)) {
+            log.debug("密码为连续字符模式，判定为弱密码");
             return true;
         }
 
+        log.debug("密码通过所有检查，判定为强密码");
         return false;
     }
 

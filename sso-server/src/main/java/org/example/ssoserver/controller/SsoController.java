@@ -453,6 +453,10 @@ public class SsoController {
             "<div class=\"account-item\" onclick=\"fillAccount('enterprise_user', '123456')\">企业用户: enterprise_user / 123456 <span class=\"role-badge\">ENTERPRISE</span></div>" +
             "<div class=\"account-item\" onclick=\"fillAccount('personal_user', '123456')\">个人用户: personal_user / 123456 <span class=\"role-badge\">PERSONAL</span></div>" +
             "</div>" +
+            "" +
+            "<div style=\"text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e0e0e0;\">" +
+            "<a href=\"/sso/register\" style=\"color: #007bff; text-decoration: none; font-size: 14px;\">还没有账号？立即注册</a>" +
+            "</div>" +
             "</div>" +
             "<script>" +
             "// 全局变量" +

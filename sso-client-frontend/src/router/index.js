@@ -293,6 +293,25 @@ const routes = [
       }
     ]
   },
+  // 认证相关路由
+  {
+    path: '/login',
+    name: 'Login',
+    component: () => import('../views/auth/Login.vue'),
+    meta: {
+      requiresAuth: false,
+      title: '用户登录'
+    }
+  },
+  {
+    path: '/register',
+    name: 'Register',
+    component: () => import('../views/auth/Register.vue'),
+    meta: {
+      requiresAuth: false,
+      title: '用户注册'
+    }
+  },
   // 通用路由
   {
     path: '/callback',

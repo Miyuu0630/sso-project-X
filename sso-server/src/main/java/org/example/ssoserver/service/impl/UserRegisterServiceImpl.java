@@ -118,16 +118,16 @@ public class UserRegisterServiceImpl implements UserRegisterService {
             throw new BusinessException(ResultCode.PARAM_ERROR, "密码格式不符合要求：至少6位，包含字母和数字");
         }
 
-        // 检查是否为弱密码
+        // 检查是否为弱密码（只检查常见弱密码，不检查强度）
         if (passwordService.isWeakPassword(password)) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "密码过于简单，请使用更复杂的密码");
         }
 
-        // 检查密码强度
-        int strength = passwordService.checkPasswordStrength(password);
-        if (strength == 0) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "密码强度过低，请使用包含大小写字母、数字和特殊字符的密码");
-        }
+        // 注释掉密码强度检查，只要包含字母和数字即可
+        // int strength = passwordService.checkPasswordStrength(password);
+        // if (strength == 0) {
+        //     throw new BusinessException(ResultCode.PARAM_ERROR, "密码强度过低，请使用包含大小写字母、数字和特殊字符的密码");
+        // }
     }
 
     /**

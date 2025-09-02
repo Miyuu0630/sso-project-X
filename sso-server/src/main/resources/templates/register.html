@@ -285,7 +285,7 @@
         <div id="successMessage" class="success-message" style="display: none;"></div>
 
         <!-- 注册表单 -->
-        <form class="register-form" id="registerForm" th:action="@{/auth/register}" method="post">
+        <form class="register-form" id="registerForm">
             <!-- 用户名 -->
             <div class="form-group">
                 <label for="username">用户名 *</label>
@@ -344,9 +344,9 @@
             <div class="form-group">
                 <label for="userType">用户类型</label>
                 <select id="userType" name="userType" class="form-control">
-                    <option value="1">个人用户</option>
-                    <option value="2">企业用户</option>
-                    <option value="3">航司用户</option>
+                    <option value="normal">个人用户</option>
+                    <option value="enterprise">企业用户</option>
+                    <option value="airline">航司用户</option>
                 </select>
             </div>
 
@@ -372,7 +372,7 @@
 
         <!-- 页脚链接 -->
         <div class="form-footer">
-            <a href="/login">已有账号？立即登录</a>
+            <a href="/sso/auth">已有账号？立即登录</a>
         </div>
     </div>
 
@@ -543,18 +543,22 @@
             
             try {
                 // 收集表单数据
-                const formData = new FormData();
-                formData.append('username', document.getElementById('username').value.trim());
-                formData.append('realName', document.getElementById('realName').value.trim());
-                formData.append('phone', document.getElementById('phone').value.trim());
-                formData.append('email', document.getElementById('email').value.trim());
-                formData.append('password', document.getElementById('password').value);
-                formData.append('userType', document.getElementById('userType').value);
+                const registerData = {
+                    username: document.getElementById('username').value.trim(),
+                    realName: document.getElementById('realName').value.trim(),
+                    phone: document.getElementById('phone').value.trim(),
+                    email: document.getElementById('email').value.trim(),
+                    password: document.getElementById('password').value,
+                    userType: document.getElementById('userType').value
+                };
                 
                 // 发送注册请求
                 const response = await fetch('/api/auth/register', {
                     method: 'POST',
-                    body: formData
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(registerData)
                 });
                 
                 const result = await response.json();
@@ -564,7 +568,7 @@
                     
                     // 延迟跳转
                     setTimeout(() => {
-                        window.location.href = '/login?message=' + encodeURIComponent('注册成功，请登录');
+                        window.location.href = '/sso/auth?message=' + encodeURIComponent('注册成功，请登录');
                     }, 2000);
                 } else {
                     showError(result.message || '注册失败，请重试');
